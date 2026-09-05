@@ -24,7 +24,7 @@ const NAV: {
 }[] = [
   { id: "overview", label: "Overview", short: "Home", icon: LayoutGrid },
   { id: "tv", label: "TV — AC", short: "TV-AC", icon: Tv },
-  { id: "mda", label: "MDA — SDA", short: "MDA", icon: Layers },
+  { id: "mda", label: "MDA - SDA", short: "MDA - SDA", icon: Layers },
   { id: "mobile", label: "Mobile", short: "Mobile", icon: Smartphone },
   { id: "reports", label: "Reports", short: "Report", icon: FileBarChart },
 ];

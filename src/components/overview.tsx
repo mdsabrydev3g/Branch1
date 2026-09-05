@@ -57,19 +57,29 @@ export function Overview() {
   const trackDay = getTrackDay(period, today);
   const branchTargetThroughYesterday =
     totals.plan > 0 ? (totals.plan / getDaysInMonth(period)) * trackDay : 0;
-  const branchActualToday = SALES_GROUPS.reduce(
+  const branchActualThroughYesterday = SALES_GROUPS.reduce(
     (total, group) =>
       total +
       group.deps.reduce(
-        (groupTotal, dep) =>
-          groupTotal + (departmentDailyActuals[period]?.[dep]?.[today] ?? 0),
+        (groupTotal, dep) => {
+          const daily = departmentDailyActuals[period]?.[dep] ?? {};
+          const hasDailyActuals = Object.keys(daily).length > 0;
+          return (
+            groupTotal +
+            (hasDailyActuals
+              ? Object.entries(daily)
+                  .filter(([date]) => date < today)
+                  .reduce((sum, [, value]) => sum + value, 0)
+              : sumBlock(block[dep]).result)
+          );
+        },
         0,
       ),
     0,
   );
   const branchTrackIndex = ratio({
     plan: branchTargetThroughYesterday,
-    result: branchActualToday,
+    result: branchActualThroughYesterday,
   });
 
   return (
@@ -96,10 +106,10 @@ export function Overview() {
           <dl className="mt-3 space-y-2">
             <MicroStat label="Target" value={formatNumber(totals.plan)} />
             <MicroStat label="Track" value={formatNumber(branchTargetThroughYesterday)} />
-            <MicroStat label="Actual" value={formatNumber(branchActualToday)} />
+            <MicroStat label="Actual" value={formatNumber(branchActualThroughYesterday)} />
             <MicroStat
               label="Remaining"
-              value={formatNumber(Math.max(0, totals.plan - branchActualToday))}
+              value={formatNumber(Math.max(0, totals.plan - branchActualThroughYesterday))}
             />
             <MicroStat
               label="Daily Target"

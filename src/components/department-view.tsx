@@ -62,7 +62,15 @@ export function DepartmentView({ dep, compact = false }: { dep: Dep; compact?: b
           </div>
           <StatusPill ratio={achievement} />
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-xl border border-border bg-card-2/70 p-3">
+            <StatInput
+              label="Monthly Target"
+              value={monthlyTarget}
+              onChange={(value) => setDepartmentTarget(dep, value)}
+              disabled={role === "staff"}
+            />
+          </div>
           <div className="rounded-xl border border-border bg-card-2/70 p-3">
             <StatInput
               label="Today's Actual"
