@@ -15,6 +15,7 @@ import {
   type DepartmentTargets,
 } from "@/lib/domain";
 import { saveKpiCell } from "@/lib/performance-api";
+import { loadDashboardState, saveDashboardState } from "@/lib/dashboard-api";
 
 const STORAGE_KEY = "fayoum-pcc-v2";
 const STORAGE_VERSION = 3;
@@ -74,6 +75,37 @@ function persistLocal(
   } catch {
     /* ignore quota / private mode */
   }
+
+}
+
+function sharedStateFromStore(state: Pick<
+  PerfState,
+  | "period"
+  | "data"
+  | "branchKpis"
+  | "dailyActuals"
+  | "branchDailyActuals"
+  | "departmentDailyActuals"
+  | "departmentTargets"
+>): Parameters<typeof saveDashboardState>[0]["data"] {
+  return {
+    period: state.period,
+    data: state.data,
+    branchKpis: state.branchKpis,
+    dailyActuals: state.dailyActuals,
+    branchDailyActuals: state.branchDailyActuals,
+    departmentDailyActuals: state.departmentDailyActuals,
+    departmentTargets: state.departmentTargets,
+  };
+}
+
+let sharedSaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+function queueSharedSave(get: () => PerfState) {
+  if (sharedSaveTimer) clearTimeout(sharedSaveTimer);
+  sharedSaveTimer = setTimeout(() => {
+    void saveDashboardState({ data: sharedStateFromStore(get()) });
+  }, 300);
 }
 
 function readSaved(): {
@@ -163,6 +195,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       get().departmentTargets,
     );
+    queueSharedSave(get);
   },
   setValue: (dep, kpi, field, value) => {
     const { period, data, role } = get();
@@ -192,6 +225,8 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentTargets,
     );
     queueSave(period, dep, kpi, nextEntry, (saveState) => set({ saveState }));
+    queueSharedSave(get    );
+    queueSharedSave(get);
   },
   setBranchValue: (kpi, field, value) => {
     if (get().role === "staff") return;
@@ -205,6 +240,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     } catch {
       /* ignore quota / private mode */
     }
+    queueSharedSave(get);
   },
   setDailyActual: (dep, kpi, date, value) => {
     const { period, data, dailyActuals, role } = get();
@@ -242,6 +278,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       get().departmentTargets,
     );
+    queueSharedSave(get);
   },
   setBranchDailyActual: (kpi, date, value) => {
     if (get().role === "staff") return;
@@ -265,6 +302,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       get().departmentTargets,
     );
+    queueSharedSave(get);
   },
   setDepartmentDailyActual: (dep, date, value) => {
     if (get().role === "staff") return;
@@ -288,6 +326,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       next,
       get().departmentTargets,
     );
+    queueSharedSave(get);
   },
   setDepartmentTarget: (dep, value) => {
     if (get().role === "staff") return;
@@ -308,6 +347,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       next,
     );
+    queueSharedSave(get);
   },
   hydrate: async () => {
     if (get().hydrated) return;
@@ -318,6 +358,26 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       if (raw) branchKpis = JSON.parse(raw) as BranchKpiData;
     } catch {
       /* use empty branch KPI targets */
+    }
+    try {
+      const shared = await loadDashboardState();
+      set({ ...shared, hydrated: true, role: "staff" });
+      persistLocal(
+        shared.period,
+        shared.data,
+        shared.dailyActuals,
+        shared.branchDailyActuals,
+        shared.departmentDailyActuals,
+        shared.departmentTargets,
+      );
+      try {
+        localStorage.setItem(`${STORAGE_KEY}:branch-kpis`, JSON.stringify(shared.branchKpis));
+      } catch {
+        /* local cache is optional */
+      }
+      return;
+    } catch {
+      // Keep the local cache available if the shared database is unavailable.
     }
     if (saved) {
       set({ ...saved, branchKpis, hydrated: true, role: "staff" });
