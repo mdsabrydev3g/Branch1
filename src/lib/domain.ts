@@ -2,7 +2,7 @@ export const KPIS = [
   "Gross",
   "Pure",
   "Agency",
-  "Tech Care",
+  "BOXI",
   "CR",
   "Mylo",
   "GK",
@@ -57,8 +57,8 @@ export type DepartmentDailyActuals = Partial<
 export type DepartmentTargets = Partial<Record<PeriodId, Partial<Record<Dep, number>>>>;
 
 export const SALES_GROUPS = [
-  { id: "tv-ac", title: "TV + AC", deps: ["TV", "AC"] as Dep[] },
-  { id: "mda-sda", title: "MDA + SDA", deps: ["MDA", "SDA"] as Dep[] },
+  { id: "tv-ac", title: "TV-AC", deps: ["TV", "AC"] as Dep[] },
+  { id: "mda-sda", title: "MDA-SDA", deps: ["MDA", "SDA"] as Dep[] },
   {
     id: "mobile",
     title: "Mobile",
@@ -95,13 +95,27 @@ export const DEP_OWNERS: Record<
 export const LEAD_KPIS: Kpi[] = ["Gross", "Pure"];
 
 export const REST_KPI_ROWS: Kpi[][] = [
-  ["Agency", "Tech Care"],
+  ["Agency", "BOXI"],
   ["CR", "Mylo"],
   ["GK"],
 ];
 
 // Backwards-compatible name: some components import KPI_ROWS
 export const KPI_ROWS = REST_KPI_ROWS;
+
+const LEGACY_KPI_KEYS: Record<string, Kpi> = { "Tech Care": "BOXI" };
+
+export function migrateKpiKeys<T>(record: Record<string, T>): Record<string, T> {
+  let out = record;
+  for (const [legacy, current] of Object.entries(LEGACY_KPI_KEYS)) {
+    if (legacy in out && !(current in out)) {
+      out = { ...out };
+      out[current] = out[legacy];
+      delete out[legacy];
+    }
+  }
+  return out;
+}
 
 export const VIEW_DEP: Record<Exclude<ViewId, "overview" | "reports">, Dep> = {
   tv: "TV",
@@ -170,7 +184,7 @@ export const KPI_HINT: Record<Kpi, string> = {
   Gross: "Gross movement",
   Pure: "Pure contribution",
   Agency: "Agency deals",
-  "Tech Care": "Tech Care attachments",
+  BOXI: "BOXI attachments",
   CR: "In-branch invoice conversion rate",
   Mylo: "Installment sales",
   GK: "Large deal leads",
@@ -181,7 +195,7 @@ function seedDept(base: number): DeptBlock {
     Gross: { plan: base, result: Math.round(base * 0.92) },
     Pure: { plan: Math.round(base * 0.4), result: Math.round(base * 0.36) },
     Agency: { plan: 12, result: 9 },
-    "Tech Care": { plan: 120, result: 104 },
+    BOXI: { plan: 120, result: 104 },
     CR: { plan: 100, result: 88 },
     Mylo: { plan: 48, result: 40 },
     GK: { plan: 14, result: 11 },

@@ -20,12 +20,60 @@ import {
   sumBlock,
   statusOf,
   type Dep,
-  type PeriodId,
 } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
 import { StatInput } from "@/components/stat-input";
+import { cn } from "@/lib/utils";
+
+type Metric = { label: string; value: string; valueClass?: string };
+
+function MetricStrip({
+  items,
+  className,
+  columns = 3,
+}: {
+  items: Metric[];
+  className?: string;
+  columns?: 3 | 5;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid gap-px overflow-hidden rounded-xl border border-border bg-border",
+        columns === 5
+          ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
+          : "grid-cols-3",
+        className,
+      )}
+    >
+      {items.map((item) => (
+        <div key={item.label} className="bg-card px-2 py-3 text-center">
+          <div className="truncate text-2xs font-medium tracking-wide text-subtle uppercase">
+            {item.label}
+          </div>
+          <div
+            className={cn(
+              "mt-1 truncate font-mono text-sm font-semibold tabular-nums sm:text-base",
+              item.valueClass ?? "text-foreground",
+            )}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function toneClass(tone: ReturnType<typeof statusOf>["tone"]) {
+  return tone === "good"
+    ? "text-success"
+    : tone === "watch"
+      ? "text-warning"
+      : "text-danger";
+}
 
 export function DepartmentView({ dep, compact = false }: { dep: Dep; compact?: boolean }) {
   const block = usePerfStore((s) => s.data[s.period][dep]);
@@ -50,21 +98,20 @@ export function DepartmentView({ dep, compact = false }: { dep: Dep; compact?: b
   const trackTarget = Math.round(calculateDailyTarget(monthlyTarget, period) * trackDay);
   const trackActual = cumulativeThroughDate(daily, today);
   const showSecondHalf = isSecondHalfVisible(period, today);
-  const tone = statusOf(achievement).tone;
   const copy = DEP_COPY[dep];
 
   if (compact) {
     return (
-      <section className="hairline rounded-2xl border border-border bg-card/90 p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="hairline rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold tracking-kicker text-primary uppercase">Section</p>
-            <h2 className="mt-1 text-lg font-semibold text-foreground">{DEP_SHORT[dep]}</h2>
+            <p className="text-2xs font-semibold tracking-kicker text-primary uppercase">Section</p>
+            <h2 className="mt-0.5 text-base font-semibold text-foreground">{DEP_SHORT[dep]}</h2>
           </div>
           <StatusPill ratio={achievement} />
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card-2/70 p-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-border bg-card-2/50 p-3">
             <StatInput
               label="Monthly Target"
               value={monthlyTarget}
@@ -72,7 +119,7 @@ export function DepartmentView({ dep, compact = false }: { dep: Dep; compact?: b
               disabled={role === "staff"}
             />
           </div>
-          <div className="rounded-xl border border-border bg-card-2/70 p-3">
+          <div className="rounded-xl border border-border bg-card-2/50 p-3">
             <StatInput
               label="Today's Actual"
               value={dailyActual}
@@ -80,16 +127,16 @@ export function DepartmentView({ dep, compact = false }: { dep: Dep; compact?: b
               disabled={role === "staff"}
             />
           </div>
-          <SummaryCard label="Track" value={formatNumber(trackTarget)} />
-          <SummaryCard label="MTD actual" value={formatNumber(monthlyActual)} />
-          <SummaryCard label="Achievement" value={formatPct(achievement)} />
         </div>
-        <TrackCard
-          target={trackTarget}
-          actual={trackActual}
-          firstHalfTarget={firstHalfTarget}
-          day={trackDay}
+        <MetricStrip
+          className="mt-3"
+          items={[
+            { label: "Track", value: formatNumber(trackTarget) },
+            { label: "MTD actual", value: formatNumber(monthlyActual) },
+            { label: "Achievement", value: formatPct(achievement), valueClass: toneClass(statusOf(achievement).tone) },
+          ]}
         />
+        <TrackCard target={trackTarget} actual={trackActual} day={trackDay} />
       </section>
     );
   }
@@ -98,23 +145,17 @@ export function DepartmentView({ dep, compact = false }: { dep: Dep; compact?: b
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold tracking-kicker text-primary uppercase">
-            Desk
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          <p className="text-2xs font-semibold tracking-kicker text-primary uppercase">Desk</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {copy.title}
           </h1>
           <p className="text-sm text-muted">{copy.blurb}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Chip label="Index" value={formatPct(achievement)} />
-          <Chip label="Open" value={formatNumber(calculateRemaining(monthlyTarget, monthlyActual))} />
-          <StatusPill ratio={achievement} />
-        </div>
+        <StatusPill ratio={achievement} />
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="hairline print-surface rounded-2xl border-l-4 border-primary bg-card/90 p-4 shadow-sm">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="hairline rounded-2xl border border-border bg-card p-4 shadow-sm">
           <StatInput
             label="Monthly Target"
             value={monthlyTarget}
@@ -122,42 +163,29 @@ export function DepartmentView({ dep, compact = false }: { dep: Dep; compact?: b
             disabled={role === "staff"}
           />
         </div>
-        <div className="hairline print-surface rounded-2xl border-l-4 border-primary bg-card/90 p-4 shadow-sm">
+        <div className="hairline rounded-2xl border border-border bg-card p-4 shadow-sm">
           <StatInput
             label="Today's Actual"
             value={dailyActual}
             onChange={(value) => setDepartmentDailyActual(dep, today, value)}
             disabled={role === "staff"}
           />
-          <div className="mt-2 text-xs text-subtle">
-            MTD actual from daily sales:{" "}
-            <span className="font-mono text-foreground">{formatNumber(monthlyActual)}</span>
-          </div>
         </div>
-        <SummaryCard label="Track" value={formatNumber(trackTarget)} />
-        <SummaryCard label="Remaining" value={formatNumber(calculateRemaining(monthlyTarget, monthlyActual))} />
       </div>
-      <div className="hairline print-surface rounded-2xl bg-card/90 p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-xs tracking-wide text-subtle uppercase">Department achievement</div>
-            <div className={`mt-1 font-mono text-3xl font-medium tabular-nums tracking-tight ${tone === "good" ? "text-success" : tone === "watch" ? "text-warning" : "text-danger"}`}>
-              {formatPct(achievement)}
-            </div>
-          </div>
-          <StatusPill ratio={achievement} />
-        </div>
-        <ProgressBar value={achievement} className="mt-4" />
-        <p className="mt-3 text-xs text-muted">
-          Department summary only. Branch KPIs are available from Overview and Reports.
-        </p>
-      </div>
-      <TrackCard
-        target={trackTarget}
-        actual={trackActual}
-        firstHalfTarget={firstHalfTarget}
-        day={trackDay}
+
+      <MetricStrip
+        columns={5}
+        items={[
+          { label: "Daily target", value: formatNumber(Math.round(calculateDailyTarget(monthlyTarget, period))) },
+          { label: "Track", value: formatNumber(trackTarget) },
+          { label: "MTD actual", value: formatNumber(monthlyActual) },
+          { label: "Remaining", value: formatNumber(calculateRemaining(monthlyTarget, monthlyActual)) },
+          { label: "Achievement", value: formatPct(achievement), valueClass: toneClass(statusOf(achievement).tone) },
+        ]}
       />
+
+      <TrackCard target={trackTarget} actual={trackActual} day={trackDay} />
+
       <section className="grid gap-4 sm:grid-cols-2">
         <HalfCard
           title="First 15 days"
@@ -179,12 +207,14 @@ export function DepartmentView({ dep, compact = false }: { dep: Dep; compact?: b
             subtitle={`Day 16 to Day ${getDaysInMonth(period)}`}
           />
         )}
-        <HalfCard
-          title="Month total at 85%"
-          target={calculate85PercentTarget(monthlyTarget)}
-          actual={monthlyActual}
-          subtitle="85% of monthly target"
-        />
+        {showSecondHalf && (
+          <HalfCard
+            title="Month total at 85%"
+            target={calculate85PercentTarget(monthlyTarget)}
+            actual={monthlyActual}
+            subtitle="85% of monthly target"
+          />
+        )}
       </section>
     </div>
   );
@@ -238,70 +268,64 @@ export function DepartmentGroupView({
   );
   const showSecondHalf = isSecondHalfVisible(period, today);
   const tone = statusOf(achievement).tone;
-  const numberClass =
-    tone === "good"
-      ? "text-success"
-      : tone === "watch"
-        ? "text-warning"
-        : "text-danger";
 
   return (
     <div className="flex flex-col gap-5">
       <section className="hairline rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold tracking-kicker text-primary uppercase">Department total</p>
-            <h1 className="mt-1 text-2xl font-semibold text-foreground">{title}</h1>
-            <p className="mt-1 truncate whitespace-nowrap text-sm text-muted">Target, daily target and actual across all sections.</p>
+            <p className="text-2xs font-semibold tracking-kicker text-primary uppercase">Department total</p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
           </div>
           <StatusPill ratio={achievement} />
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <SummaryCard label="Total target" value={formatNumber(summary.target)} />
-          <SummaryCard
-            label="Daily target"
-            value={formatNumber(Math.round(calculateDailyTarget(summary.target, period)))}
-          />
-          <SummaryCard label="Track" value={formatNumber(trackTarget)} />
-          <SummaryCard label="Total actual" value={formatNumber(summary.actual)} valueClass={numberClass} />
-          <SummaryCard label="Achievement" value={formatPct(achievement)} valueClass={numberClass} />
-        </div>
+        <MetricStrip
+          className="mt-4"
+          columns={5}
+          items={[
+            { label: "Total target", value: formatNumber(summary.target) },
+            { label: "Daily target", value: formatNumber(Math.round(calculateDailyTarget(summary.target, period))) },
+            { label: "Track", value: formatNumber(trackTarget) },
+            { label: "Total actual", value: formatNumber(summary.actual), valueClass: toneClass(tone) },
+            { label: "Achievement", value: formatPct(achievement), valueClass: toneClass(tone) },
+          ]}
+        />
         <ProgressBar value={achievement} className="mt-4" />
       </section>
-      <TrackCard
-        target={trackTarget}
-        actual={trackActual}
-        firstHalfTarget={firstHalfTarget}
-        day={trackDay}
-      />
+
+      <TrackCard target={trackTarget} actual={trackActual} day={trackDay} />
+
       {title === "Mobile" && (
-      <section className="grid gap-4 sm:grid-cols-2">
-        <HalfCard title="First 15 days" target={firstHalfTarget} actual={firstHalfActual} subtitle="Day 1 to Day 15" />
-        <HalfCard
-          title="First-half 80% checkpoint"
-          target={calculate80PercentTarget(firstHalfTarget)}
-          actual={firstHalfActual}
-          subtitle="80% of the first 15-day target"
-        />
-        {showSecondHalf && (
+        <section className="grid gap-4 sm:grid-cols-2">
+          <HalfCard title="First 15 days" target={firstHalfTarget} actual={firstHalfActual} subtitle="Day 1 to Day 15" />
           <HalfCard
-            title="Second half"
-            target={secondHalfTarget}
-            actual={secondHalfActual}
-            subtitle={`Day 16 to Day ${getDaysInMonth(period)}`}
+            title="First-half 80% checkpoint"
+            target={calculate80PercentTarget(firstHalfTarget)}
+            actual={firstHalfActual}
+            subtitle="80% of the first 15-day target"
           />
-        )}
-        <HalfCard
-          title="Month total at 85%"
-          target={calculate85PercentTarget(summary.target)}
-          actual={summary.actual}
-          subtitle="85% of monthly target"
-        />
-      </section>
+          {showSecondHalf && (
+            <HalfCard
+              title="Second half"
+              target={secondHalfTarget}
+              actual={secondHalfActual}
+              subtitle={`Day 16 to Day ${getDaysInMonth(period)}`}
+            />
+          )}
+          {showSecondHalf && (
+            <HalfCard
+              title="Month total at 85%"
+              target={calculate85PercentTarget(summary.target)}
+              actual={summary.actual}
+              subtitle="85% of monthly target"
+            />
+          )}
+        </section>
       )}
-      <div className="border-l-2 border-border pl-3 sm:pl-5">
-        <p className="mb-3 text-xs font-semibold tracking-kicker text-subtle uppercase">Department sections</p>
-        <div className="flex flex-col gap-6">
+
+      <div>
+        <p className="mb-3 text-2xs font-semibold tracking-kicker text-subtle uppercase">Department sections</p>
+        <div className="flex flex-col gap-5">
           {deps.map((dep) => (
             <DepartmentView key={dep} dep={dep} compact={title === "Mobile"} />
           ))}
@@ -311,95 +335,51 @@ export function DepartmentGroupView({
   );
 }
 
-function SummaryCard({ label, value, valueClass = "text-foreground" }: { label: string; value: string; valueClass?: string }) {
-  return (
-    <div className="hairline print-surface rounded-2xl bg-card/80 p-4">
-      <div className="text-xs tracking-wide text-subtle uppercase">{label}</div>
-      <div className={`mt-2 font-mono text-xl font-medium tabular-nums ${valueClass}`}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
 function TrackCard({
   target,
   actual,
-  firstHalfTarget,
   day,
 }: {
   target: number;
   actual: number;
-  firstHalfTarget: number;
   day: number;
 }) {
   const variance = actual - target;
   const tone = variance > 0 ? "good" : variance < 0 ? "bad" : "watch";
-  const toneClass =
-    tone === "good" ? "border-success/50 bg-success/10 text-success" :
-    tone === "watch" ? "border-warning/50 bg-warning/10 text-warning" :
-    "border-danger/50 bg-danger/10 text-danger";
+  const wrapClass =
+    tone === "good" ? "border-success/40 bg-success/5" :
+    tone === "watch" ? "border-warning/40 bg-warning/5" :
+    "border-danger/40 bg-danger/5";
   const stateLabel =
     tone === "good" ? "Ahead of track" :
     tone === "bad" ? "Behind track" :
     "On track";
 
   return (
-    <div className={`mt-4 rounded-2xl border p-4 ${toneClass}`}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={cn("rounded-2xl border p-4", wrapClass)}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-xs font-semibold tracking-wide uppercase">Track until yesterday</div>
-          <div className="mt-1 text-xs opacity-80">
-            Track target through day {day}; rate = cumulative actual through yesterday minus target
+          <div className="text-2xs font-semibold tracking-wide text-foreground uppercase">Track until yesterday</div>
+          <div className="mt-0.5 text-xs text-muted">
+            Cumulative target through day {day}
           </div>
         </div>
-        <span className="rounded-full bg-current/10 px-2 py-1 text-xs font-semibold">
+        <span className={cn("rounded-full border border-current/30 px-2.5 py-0.5 text-2xs font-semibold", toneClass(tone))}>
           {stateLabel}
         </span>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <TrackMetric
-          label="Track Target"
-          amount={target}
-          percentage={firstHalfTarget > 0 ? target / firstHalfTarget : 0}
-        />
-        <TrackMetric
-          label="Actual Through Yesterday"
-          amount={actual}
-          percentage={target > 0 ? actual / target : 0}
-        />
-        <TrackMetric
-          label="Track Rate"
-          amount={variance}
-          percentage={target > 0 ? variance / target : 0}
-          signed
-          valueClass={tone === "good" ? "text-success" : tone === "bad" ? "text-danger" : "text-warning"}
-        />
-      </div>
-    </div>
-  );
-}
-
-function TrackMetric({
-  label,
-  amount,
-  percentage,
-  signed = false,
-  valueClass = "text-foreground",
-}: {
-  label: string;
-  amount: number;
-  percentage: number;
-  signed?: boolean;
-  valueClass?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-current/15 bg-card/30 p-3">
-      <div className="text-xs opacity-75">{label}</div>
-      <div className={`mt-1 font-mono text-lg font-semibold tabular-nums ${valueClass}`}>
-        {signed && amount > 0 ? "+" : ""}{formatNumber(amount)}
-      </div>
-      <div className="mt-1 text-xs font-semibold">{formatPct(percentage)}</div>
+      <MetricStrip
+        className="mt-3"
+        items={[
+          { label: "Track target", value: formatNumber(target) },
+          { label: "Actual through yesterday", value: formatNumber(actual) },
+          {
+            label: "Variance",
+            value: `${variance > 0 ? "+" : ""}${formatNumber(variance)}`,
+            valueClass: toneClass(tone),
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -417,35 +397,27 @@ function HalfCard({
 }) {
   const achievement = ratio({ plan: target, result: actual });
   return (
-    <article className="hairline print-surface rounded-2xl bg-card/80 p-4">
+    <article className="hairline rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-medium text-foreground">{title}</h2>
-          <p className="mt-1 text-xs text-subtle">{subtitle}</p>
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          <p className="mt-0.5 text-xs text-subtle">{subtitle}</p>
         </div>
         <StatusPill ratio={achievement} />
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-        <SummaryCard label="Target" value={formatNumber(target)} />
-        <SummaryCard label="Actual" value={formatNumber(actual)} />
-        <SummaryCard label="Remaining" value={formatNumber(calculateRemaining(target, actual))} />
-      </div>
+      <MetricStrip
+        className="mt-3"
+        items={[
+          { label: "Target", value: formatNumber(target) },
+          { label: "Actual", value: formatNumber(actual) },
+          { label: "Remaining", value: formatNumber(calculateRemaining(target, actual)) },
+        ]}
+      />
       <div className="mt-3 flex items-center justify-between text-xs text-muted">
         <span>Achievement</span>
         <span className="font-mono font-semibold text-foreground">{formatPct(achievement)}</span>
       </div>
       <ProgressBar value={achievement} className="mt-2" />
     </article>
-  );
-}
-
-function Chip({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card px-3 py-2">
-      <div className="text-2xs tracking-wide text-subtle uppercase">
-        {label}
-      </div>
-      <div className="font-mono text-sm tabular-nums text-foreground">{value}</div>
-    </div>
   );
 }

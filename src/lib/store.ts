@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   createSeed,
   createBranchKpiSeed,
+  migrateKpiKeys,
   type BranchKpiData,
   type Dep,
   type Entry,
@@ -169,6 +170,37 @@ function queueSave(
         .catch(() => onState("error"));
     }, 280),
   );
+}
+
+function normalizeKpiKeys<
+  T extends {
+    branchKpis: BranchKpiData;
+    dailyActuals: DailyActuals;
+    branchDailyActuals: BranchDailyActuals;
+  },
+>(state: T): T {
+  const branchKpis = migrateKpiKeys({
+    ...state.branchKpis,
+  } as Record<string, Entry>) as BranchKpiData;
+  const branchDailyActuals: BranchDailyActuals = {};
+  for (const [period, kpis] of Object.entries(state.branchDailyActuals)) {
+    branchDailyActuals[period as PeriodId] = migrateKpiKeys({
+      ...(kpis ?? {}),
+    } as Record<string, Record<string, number>>) as BranchDailyActuals[PeriodId];
+  }
+  const dailyActuals: DailyActuals = {};
+  for (const [period, deps] of Object.entries(state.dailyActuals)) {
+    const mappedDeps: Record<string, Partial<Record<Kpi, Record<string, number>>>> = {};
+    for (const [dep, kpis] of Object.entries(deps ?? {})) {
+      mappedDeps[dep] = migrateKpiKeys({
+        ...(kpis ?? {}),
+      } as Record<string, Record<string, number>>) as Partial<
+        Record<Kpi, Record<string, number>>
+      >;
+    }
+    dailyActuals[period as PeriodId] = mappedDeps as DailyActuals[PeriodId];
+  }
+  return { ...state, branchKpis, branchDailyActuals, dailyActuals };
 }
 
 export const usePerfStore = create<PerfState>((set, get) => ({
@@ -359,7 +391,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       /* use empty branch KPI targets */
     }
     try {
-      const shared = await loadDashboardState();
+      const shared = normalizeKpiKeys(await loadDashboardState());
       set({ ...shared, hydrated: true, role: "staff" });
       persistLocal(
         shared.period,
@@ -379,7 +411,11 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       // Keep the local cache available if the shared database is unavailable.
     }
     if (saved) {
-      set({ ...saved, branchKpis, hydrated: true, role: "staff" });
+      set({
+        ...normalizeKpiKeys({ ...saved, branchKpis }),
+        hydrated: true,
+        role: "staff",
+      });
       return;
     }
     persistLocal(

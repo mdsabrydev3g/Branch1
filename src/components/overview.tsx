@@ -4,7 +4,6 @@ import {
   formatNumber,
   formatPct,
   FIXED_KPI_TARGETS,
-  cumulativeThroughDate,
   getDaysInMonth,
   getTrackDay,
   latestDailyValue,
@@ -57,27 +56,23 @@ export function Overview() {
     totals.plan > 0
       ? Math.round((totals.plan / getDaysInMonth(period)) * trackDay)
       : 0;
-  const branchActualThroughYesterday = SALES_GROUPS.reduce(
+  const branchActual = SALES_GROUPS.reduce(
     (total, group) =>
       total +
       group.deps.reduce(
-        (groupTotal, dep) => {
-          const daily = departmentDailyActuals[period]?.[dep] ?? {};
-          const hasDailyActuals = Object.keys(daily).length > 0;
-          return (
-            groupTotal +
-            (hasDailyActuals
-              ? cumulativeThroughDate(daily, today)
-              : sumBlock(block[dep]).result)
-          );
-        },
+        (groupTotal, dep) =>
+          groupTotal +
+          departmentMonthActual(
+            departmentDailyActuals[period]?.[dep] ?? {},
+            sumBlock(block[dep]).result,
+          ),
         0,
       ),
     0,
   );
   const branchTrackIndex = ratio({
     plan: branchTargetThroughYesterday,
-    result: branchActualThroughYesterday,
+    result: branchActual,
   });
 
   return (
@@ -104,10 +99,10 @@ export function Overview() {
           <dl className="mt-3 space-y-2">
             <MicroStat label="Target" value={formatNumber(totals.plan)} />
             <MicroStat label="Track" value={formatNumber(branchTargetThroughYesterday)} />
-            <MicroStat label="Actual" value={formatNumber(branchActualThroughYesterday)} />
+            <MicroStat label="Actual" value={formatNumber(branchActual)} />
             <MicroStat
               label="Remaining"
-              value={formatNumber(Math.max(0, totals.plan - branchActualThroughYesterday))}
+              value={formatNumber(Math.max(0, totals.plan - branchActual))}
             />
             <MicroStat
               label="Daily Target"
@@ -119,115 +114,101 @@ export function Overview() {
         <div className="hairline print-surface overflow-hidden rounded-2xl bg-card/80 lg:col-span-8">
           <div className="px-5 py-4">
             <h2 className="text-sm font-medium text-foreground">Main KPI performance</h2>
-            <p className="text-xs text-subtle">Actual through yesterday versus the target through yesterday</p>
+            <p className="text-xs text-subtle">Actual versus the track through yesterday</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
-                  <th className="px-5 py-3 font-medium">KPI</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Target</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Track</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Actual</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Remaining</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Actual / Track</th>
-                  <th className="border-l border-border px-5 py-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {SALES_GROUPS.map((group) => {
-                  const groupTotals = group.deps.reduce(
-                    (total, dep) => {
-                      const fallback = sumBlock(block[dep]);
-                      const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                      const target = departmentTargets[period]?.[dep] ?? fallback.plan;
-                      return {
-                        target: total.target + target,
-                        actual:
-                          total.actual +
-                          (Object.keys(daily).length > 0
-                            ? cumulativeThroughDate(daily, today)
-                            : fallback.result),
-                      };
-                    },
-                    { target: 0, actual: 0 },
-                  );
-                  const groupTrack = Math.round(
-                    (groupTotals.target / getDaysInMonth(period)) * trackDay,
-                  );
-                  const groupRatio = ratio({
-                    plan: groupTrack,
-                    result: groupTotals.actual,
-                  });
-                  return (
-                    <tr key={group.id} className="border-b border-border bg-card-2/35">
-                      <td className="px-5 py-3 text-sm font-semibold text-foreground">
-                        {group.title}
-                      </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
-                        {formatNumber(groupTotals.target)}
-                      </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
-                        {formatNumber(groupTrack)}
-                      </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-foreground">
-                        {formatNumber(groupTotals.actual)}
-                      </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
-                        {formatNumber(Math.max(0, groupTotals.target - groupTotals.actual))}
-                      </td>
-                      <td className="border-l border-border px-3 py-3">
-                        <span className="font-mono text-xs font-semibold tabular-nums text-muted">
-                          {formatPct(groupRatio)}
-                        </span>
-                      </td>
-                      <td className="border-l border-border px-5 py-3">
-                        <StatusPill ratio={groupRatio} />
-                      </td>
-                    </tr>
-                  );
-                })}
-                {KPIS.map((kpi) => {
-                  const entry = branchKpis[kpi];
-                  const daily = branchDailyActuals[period]?.[kpi] ?? {};
-                  const fixedTarget = FIXED_KPI_TARGETS[kpi];
-                  // Gross is the sum of all department sales: derive its
-                  // monthly target from the department targets, not manual input.
-                  const target =
-                    kpi === "Gross" && totals.plan > 0
-                      ? totals.plan
-                      : (fixedTarget ?? entry.plan);
-                  const targetThroughYesterday =
-                    fixedTarget !== undefined
-                      ? fixedTarget
-                      : Math.round((target / getDaysInMonth(period)) * trackDay);
-                  const actual =
-                    kpi === "CR"
-                      ? latestDailyValue(daily)
-                      : (daily[today] ?? 0);
-                  const kpiRatio = ratio({
-                    plan: fixedTarget !== undefined ? target : targetThroughYesterday,
-                    result: actual,
-                  });
-                  return (
-                    <tr key={kpi} className="border-b border-border last:border-0">
-                      <td className="px-5 py-3 text-sm font-medium text-foreground">{kpi}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{formatNumber(target)}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground">{formatNumber(actual)}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{formatNumber(Math.max(0, target - actual))}</td>
-                      <td className="border-l border-border px-3 py-3">
-                        <div className="flex min-w-20 items-center gap-2">
-                          <span className="w-10 font-mono text-xs tabular-nums text-muted">{formatPct(kpiRatio)}</span>
-                        </div>
-                      </td>
-                      <td className="border-l border-border px-5 py-3"><StatusPill ratio={kpiRatio} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <table className="w-full table-fixed border-collapse text-left">
+            <thead>
+              <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
+                <th className="w-1/4 px-5 py-3 font-medium">KPI</th>
+                <th className="border-l border-border px-3 py-3 font-medium">Track</th>
+                <th className="border-l border-border px-3 py-3 font-medium">Actual</th>
+                <th className="border-l border-border px-3 py-3 font-medium">%</th>
+                <th className="w-1/5 border-l border-border px-4 py-3 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SALES_GROUPS.map((group) => {
+                const groupTotals = group.deps.reduce(
+                  (total, dep) => {
+                    const fallback = sumBlock(block[dep]);
+                    const daily = departmentDailyActuals[period]?.[dep] ?? {};
+                    const target = departmentTargets[period]?.[dep] ?? fallback.plan;
+                    return {
+                      target: total.target + target,
+                      actual:
+                        total.actual +
+                        departmentMonthActual(daily, fallback.result),
+                    };
+                  },
+                  { target: 0, actual: 0 },
+                );
+                const groupTrack = Math.round(
+                  (groupTotals.target / getDaysInMonth(period)) * trackDay,
+                );
+                const groupRatio = ratio({
+                  plan: groupTrack,
+                  result: groupTotals.actual,
+                });
+                return (
+                  <tr key={group.id} className="border-b border-border bg-card-2/35">
+                    <td className="truncate px-5 py-3 text-sm font-semibold text-foreground">
+                      {group.title}
+                    </td>
+                    <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
+                      {formatNumber(groupTrack)}
+                    </td>
+                    <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-foreground">
+                      {formatNumber(groupTotals.actual)}
+                    </td>
+                    <td className="border-l border-border px-3 py-3">
+                      <span className="font-mono text-xs font-semibold tabular-nums text-muted">
+                        {formatPct(groupRatio)}
+                      </span>
+                    </td>
+                    <td className="border-l border-border px-4 py-3">
+                      <StatusPill ratio={groupRatio} />
+                    </td>
+                  </tr>
+                );
+              })}
+              {KPIS.map((kpi) => {
+                const entry = branchKpis[kpi];
+                const daily = branchDailyActuals[period]?.[kpi] ?? {};
+                const fixedTarget = FIXED_KPI_TARGETS[kpi];
+                // Gross is the sum of all department sales: derive its
+                // monthly target from the department targets, not manual input.
+                const target =
+                  kpi === "Gross" && totals.plan > 0
+                    ? totals.plan
+                    : (fixedTarget ?? entry.plan);
+                const targetThroughYesterday =
+                  fixedTarget !== undefined
+                    ? fixedTarget
+                    : Math.round((target / getDaysInMonth(period)) * trackDay);
+                const actual =
+                  kpi === "CR"
+                    ? latestDailyValue(daily)
+                    : (daily[today] ?? 0);
+                const kpiRatio = ratio({
+                  plan: fixedTarget !== undefined ? target : targetThroughYesterday,
+                  result: actual,
+                });
+                return (
+                  <tr key={kpi} className="border-b border-border last:border-0">
+                    <td className="truncate px-5 py-3 text-sm font-medium text-foreground">{kpi}</td>
+                    <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}</td>
+                    <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground">{formatNumber(actual)}</td>
+                    <td className="border-l border-border px-3 py-3">
+                      <div className="flex min-w-20 items-center gap-2">
+                        <span className="w-10 font-mono text-xs tabular-nums text-muted">{formatPct(kpiRatio)}</span>
+                      </div>
+                    </td>
+                    <td className="border-l border-border px-4 py-3"><StatusPill ratio={kpiRatio} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
 
