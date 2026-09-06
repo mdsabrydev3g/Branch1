@@ -225,7 +225,6 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentTargets,
     );
     queueSave(period, dep, kpi, nextEntry, (saveState) => set({ saveState }));
-    queueSharedSave(get    );
     queueSharedSave(get);
   },
   setBranchValue: (kpi, field, value) => {

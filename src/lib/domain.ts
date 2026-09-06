@@ -303,6 +303,74 @@ export function calculateDailyTarget(monthlyTarget: number, period: PeriodId): n
   return monthlyTarget / getDaysInMonth(period);
 }
 
+// Daily department entries are cumulative month-to-date snapshots:
+// the real actual is the value of the most recent entry, never the sum.
+export function latestDailyValue(
+  daily: Record<string, number>,
+  upToDay?: number,
+): number {
+  let bestDate = "";
+  let best = 0;
+  for (const [date, value] of Object.entries(daily)) {
+    if (upToDay !== undefined && Number(date.slice(-2)) > upToDay) continue;
+    if (date > bestDate) {
+      bestDate = date;
+      best = value;
+    }
+  }
+  return best;
+}
+
+export function cumulativeThroughDate(
+  daily: Record<string, number>,
+  beforeDate: string,
+): number {
+  let bestDate = "";
+  let best = 0;
+  for (const [date, value] of Object.entries(daily)) {
+    if (date >= beforeDate) continue;
+    if (date > bestDate) {
+      bestDate = date;
+      best = value;
+    }
+  }
+  return best;
+}
+
+export function departmentMonthActual(
+  daily: Record<string, number>,
+  fallback: number,
+): number {
+  return Object.keys(daily).length > 0 ? latestDailyValue(daily) : fallback;
+}
+
+export function departmentFirstHalfActual(daily: Record<string, number>): number {
+  return latestDailyValue(daily, 15);
+}
+
+export function departmentSecondHalfActual(daily: Record<string, number>): number {
+  if (Object.keys(daily).length === 0) return 0;
+  const latest = latestDailyValue(daily);
+  const firstHalf = departmentFirstHalfActual(daily);
+  return Math.max(0, latest - firstHalf);
+}
+
+export function getTrackDay(period: PeriodId | string, today: string): number {
+  const currentPeriod = today.slice(0, 7);
+  if (period < currentPeriod) {
+    const [year, month] = period.split("-").map(Number);
+    return new Date(year, month, 0).getDate();
+  }
+  if (period > currentPeriod) return 0;
+  return Math.max(0, Number(today.slice(-2)) - 1);
+}
+
+export function isSecondHalfVisible(period: PeriodId | string, today: string): boolean {
+  const currentPeriod = today.slice(0, 7);
+  if (period !== currentPeriod) return period < currentPeriod;
+  return Number(today.slice(-2)) >= 16;
+}
+
 export function calculateFirstHalfTarget(monthlyTarget: number, period: PeriodId): number {
   return calculateDailyTarget(monthlyTarget, period) * 15;
 }
