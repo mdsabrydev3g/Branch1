@@ -10,7 +10,7 @@ import { usePerfStore } from "@/lib/store";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
 
-export function DepartmentView({ depKey }: { depKey: string }) {
+export function DepartmentView({ depKey }: { depKey?: string }) {
   const data = usePerfStore((s) => s.data);
   const period = usePerfStore((s) => s.period);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
@@ -19,14 +19,18 @@ export function DepartmentView({ depKey }: { depKey: string }) {
   const today = new Date().toISOString().slice(0, 10);
   const currentDay = new Date().getDate();
   const currentMonthPeriod = today.slice(0, 7);
-  const block = data[period] ?? {};
+
+  // حماية ضد القيم الغير معرفة
+  const safeDepKey = depKey || "Gross";
+  const block = data?.[period] ?? {};
+  const depData = block[safeDepKey] || { plan: 0, result: 0 };
 
   // 1. حساب المستهدف الإجمالي للقسم
-  const fallback = sumBlock(block[depKey]);
-  const monthTarget = departmentTargets[period]?.[depKey] ?? fallback.plan;
+  const fallback = sumBlock(depData);
+  const monthTarget = departmentTargets?.[period]?.[safeDepKey] ?? fallback.plan ?? 0;
 
   // 2. حساب المحقق اليومي للأيام (1-15) و (16-30)
-  const dailyData = departmentDailyActuals[period]?.[depKey] ?? {};
+  const dailyData = departmentDailyActuals?.[period]?.[safeDepKey] ?? {};
 
   const { firstHalfActual, secondHalfActual } = useMemo(() => {
     let maxFirstHalf = 0;
@@ -34,14 +38,15 @@ export function DepartmentView({ depKey }: { depKey: string }) {
 
     Object.entries(dailyData).forEach(([dateStr, val]) => {
       const dayNum = parseInt(dateStr.slice(-2), 10);
+      const numVal = typeof val === "number" ? val : 0;
       if (dayNum <= 15) {
-        if (val > maxFirstHalf) maxFirstHalf = val;
+        if (numVal > maxFirstHalf) maxFirstHalf = numVal;
       } else {
-        if (val > maxSecondHalf) maxSecondHalf = val;
+        if (numVal > maxSecondHalf) maxSecondHalf = numVal;
       }
     });
 
-    const actualFirst = maxFirstHalf > 0 ? maxFirstHalf : fallback.result;
+    const actualFirst = maxFirstHalf > 0 ? maxFirstHalf : (fallback.result ?? 0);
     const actualSecond = maxSecondHalf;
 
     return {
@@ -51,7 +56,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
   }, [dailyData, fallback.result]);
 
   // 3. حساب مستهدف الأجزاء
-  const daysInMonth = getDaysInMonth(period);
+  const daysInMonth = getDaysInMonth(period) || 30;
   const firstHalfTarget = Math.round((monthTarget / daysInMonth) * 15);
   const checkpoint80Target = Math.round(firstHalfTarget * 0.8);
   const secondHalfTarget = monthTarget - firstHalfTarget;
@@ -61,7 +66,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
   const checkpointRatio = ratio({ plan: checkpoint80Target, result: firstHalfActual });
   const secondHalfRatio = ratio({ plan: secondHalfTarget, result: secondHalfActual });
 
-  // شرط عرض كارت النصف الثاني (من يوم 16 في الشهر الحالي أو عند عرض أشهر سابقة)
+  // شرط عرض كارت النصف الثاني
   const showSecondHalf = currentDay >= 16 || period < currentMonthPeriod;
 
   return (
@@ -77,19 +82,19 @@ export function DepartmentView({ depKey }: { depKey: string }) {
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div>
-            <span className="text-2xs text-subtle uppercase">Target</span>
+            <span className="text-2xs uppercase text-subtle">Target</span>
             <p className="font-mono text-base font-semibold text-foreground">
               {formatNumber(firstHalfTarget)}
             </p>
           </div>
           <div>
-            <span className="text-2xs text-subtle uppercase">Actual</span>
+            <span className="text-2xs uppercase text-subtle">Actual</span>
             <p className="font-mono text-base font-semibold text-foreground">
               {formatNumber(firstHalfActual)}
             </p>
           </div>
           <div>
-            <span className="text-2xs text-subtle uppercase">Remaining</span>
+            <span className="text-2xs uppercase text-subtle">Remaining</span>
             <p className="font-mono text-base font-semibold text-foreground">
               {formatNumber(Math.max(0, firstHalfTarget - firstHalfActual))}
             </p>
@@ -115,19 +120,19 @@ export function DepartmentView({ depKey }: { depKey: string }) {
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div>
-            <span className="text-2xs text-subtle uppercase">Target</span>
+            <span className="text-2xs uppercase text-subtle">Target</span>
             <p className="font-mono text-base font-semibold text-foreground">
               {formatNumber(checkpoint80Target)}
             </p>
           </div>
           <div>
-            <span className="text-2xs text-subtle uppercase">Actual</span>
+            <span className="text-2xs uppercase text-subtle">Actual</span>
             <p className="font-mono text-base font-semibold text-foreground">
               {formatNumber(firstHalfActual)}
             </p>
           </div>
           <div>
-            <span className="text-2xs text-subtle uppercase">Remaining</span>
+            <span className="text-2xs uppercase text-subtle">Remaining</span>
             <p className="font-mono text-base font-semibold text-foreground">
               {formatNumber(Math.max(0, checkpoint80Target - firstHalfActual))}
             </p>
@@ -142,7 +147,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
         </div>
       </section>
 
-      {/* 3. Second half Card - يظهر من يوم 16 فقط */}
+      {/* 3. Second half Card */}
       {showSecondHalf && (
         <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
           <div className="mb-2 flex items-center justify-between">
@@ -154,19 +159,19 @@ export function DepartmentView({ depKey }: { depKey: string }) {
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
             <div>
-              <span className="text-2xs text-subtle uppercase">Target</span>
+              <span className="text-2xs uppercase text-subtle">Target</span>
               <p className="font-mono text-base font-semibold text-foreground">
                 {formatNumber(secondHalfTarget)}
               </p>
             </div>
             <div>
-              <span className="text-2xs text-subtle uppercase">Actual</span>
+              <span className="text-2xs uppercase text-subtle">Actual</span>
               <p className="font-mono text-base font-semibold text-foreground">
                 {formatNumber(secondHalfActual)}
               </p>
             </div>
             <div>
-              <span className="text-2xs text-subtle uppercase">Remaining</span>
+              <span className="text-2xs uppercase text-subtle">Remaining</span>
               <p className="font-mono text-base font-semibold text-foreground">
                 {formatNumber(Math.max(0, secondHalfTarget - secondHalfActual))}
               </p>
@@ -185,6 +190,6 @@ export function DepartmentView({ depKey }: { depKey: string }) {
   );
 }
 
-export function DepartmentGroupView(props: { depKey: string }) {
+export function DepartmentGroupView(props: { depKey?: string }) {
   return <DepartmentView {...props} />;
 }
