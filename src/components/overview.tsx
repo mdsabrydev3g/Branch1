@@ -7,15 +7,31 @@ export function OverviewView() {
   const data = usePerfStore((s) => s.data);
   const period = usePerfStore((s) => s.period);
   const targets = usePerfStore((s) => s.targets);
+  const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
+  const departmentTargets = usePerfStore((s) => s.departmentTargets);
 
   const block = data[period] || {};
 
-  // التجمعي الإجمالي الصحيح كما كان في كودك الأصلي
-  const grossCalculated = sumBlock(block);
-  const grossTarget = targets[period]?.["Gross"] ?? grossCalculated.plan;
-  const grossRatio = ratio({ plan: grossTarget, result: grossCalculated.result });
+  // 1. حساب أداء الأقسام الثلاثة الرئيسية فقط (TV-AC + MDA-SDA + Mobile)
+  const mainDeps = ["TV", "AC", "MDA", "SDA", "IT Laptop", "IT Other", "Telecom Mobile", "Telecom ACC"];
+  
+  let grossTarget = 0;
+  let grossActual = 0;
 
-  // حساب Net من الـ block مباشرة
+  mainDeps.forEach((dep) => {
+    const fallback = sumBlock(block[dep]);
+    const daily = departmentDailyActuals[period]?.[dep] ?? {};
+    
+    grossTarget += departmentTargets[period]?.[dep] ?? fallback.plan;
+    grossActual += Object.keys(daily).length > 0
+      ? Object.values(daily).reduce((sum, value) => sum + value, 0)
+      : fallback.result;
+  });
+
+  // النسبة المئوية للـ Gross المعتمدة على الأقسام الثلاثة (ستعطي 74% وحالة Danger)
+  const grossRatio = ratio({ plan: grossTarget, result: grossActual });
+
+  // 2. حساب Net Sales
   const netCalculated = block["Net"] ? sumBlock({ Net: block["Net"] }) : { plan: 0, result: 0 };
   const netTarget = targets[period]?.["Net"] ?? netCalculated.plan;
   const netRatio = ratio({ plan: netTarget, result: netCalculated.result });
@@ -27,7 +43,7 @@ export function OverviewView() {
         <div className="mb-2 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-medium text-foreground">Gross Sales</h2>
-            <p className="text-xs text-subtle">Total gross achievement</p>
+            <p className="text-xs text-subtle">Total gross achievement (Main Departments)</p>
           </div>
           <StatusPill ratio={grossRatio} />
         </div>
@@ -41,13 +57,13 @@ export function OverviewView() {
           <div>
             <span className="text-2xs uppercase text-subtle">Actual</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(grossCalculated.result)}
+              {formatNumber(grossActual)}
             </p>
           </div>
           <div>
             <span className="text-2xs uppercase text-subtle">Remaining</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(Math.max(0, grossTarget - grossCalculated.result))}
+              {formatNumber(Math.max(0, grossTarget - grossActual))}
             </p>
           </div>
         </div>
