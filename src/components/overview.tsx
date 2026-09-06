@@ -17,6 +17,14 @@ import { StatusPill } from "@/components/status-pill";
 import { StatInput } from "@/components/stat-input";
 import { cn } from "@/lib/utils";
 
+// دالة مساعدة لجلب القيمة التراكمية الصحيحة بدلاً من جمع الأيام السابقة مضاعفةً
+function getCumulativeActual(dailyObj: Record<string, number>, fallbackResult: number): number {
+  const values = Object.values(dailyObj);
+  if (values.length === 0) return fallbackResult;
+  // أخذ القيمة التراكمية الأخيرة المدخلة مباشرة لمنع المضاعفة
+  return Math.max(...values, 0);
+}
+
 export function Overview() {
   const data = usePerfStore((s) => s.data);
   const period = usePerfStore((s) => s.period);
@@ -30,51 +38,34 @@ export function Overview() {
   const role = usePerfStore((s) => s.role);
   const today = new Date().toISOString().slice(0, 10);
   const block = data[period];
+
   const totals = SALES_GROUPS.reduce(
     (total, group) =>
       group.deps.reduce(
         (groupTotal, dep) => {
           const part = sumBlock(block[dep]);
           const daily = departmentDailyActuals[period]?.[dep] ?? {};
-          const hasDailyActuals = Object.keys(daily).length > 0;
+          const cumulativeResult = getCumulativeActual(daily, part.result);
           return {
             plan:
               groupTotal.plan +
               (departmentTargets[period]?.[dep] ?? part.plan),
-            result:
-              groupTotal.result +
-              (hasDailyActuals
-                ? Object.values(daily).reduce((sum, value) => sum + value, 0)
-                : part.result),
+            result: groupTotal.result + cumulativeResult,
           };
         },
         total,
       ),
     { plan: 0, result: 0 },
   );
+
   const index = ratio(totals);
   const meta = periodMeta(period);
   const trackDay = getTrackDay(period, today);
   const branchTargetThroughYesterday =
     totals.plan > 0 ? (totals.plan / getDaysInMonth(period)) * trackDay : 0;
-  const branchActual = SALES_GROUPS.reduce(
-    (total, group) =>
-      total +
-      group.deps.reduce(
-        (groupTotal, dep) => {
-          const daily = departmentDailyActuals[period]?.[dep] ?? {};
-          const hasDailyActuals = Object.keys(daily).length > 0;
-          return (
-            groupTotal +
-            (hasDailyActuals
-              ? Object.values(daily).reduce((sum, value) => sum + value, 0)
-              : sumBlock(block[dep]).result)
-          );
-        },
-        0,
-      ),
-    0,
-  );
+
+  const branchActual = totals.result;
+
   const branchTrackIndex = ratio({
     plan: branchTargetThroughYesterday,
     result: branchActual,
@@ -141,11 +132,10 @@ export function Overview() {
                       const fallback = sumBlock(block[dep]);
                       const daily = departmentDailyActuals[period]?.[dep] ?? {};
                       const target = departmentTargets[period]?.[dep] ?? fallback.plan;
+                      const actual = getCumulativeActual(daily, fallback.result);
                       return {
                         target: total.target + target,
-                        actual:
-                          total.actual +
-                          (daily[today] ?? 0),
+                        actual: total.actual + actual,
                       };
                     },
                     { target: 0, actual: 0 },
@@ -194,18 +184,18 @@ export function Overview() {
                     fixedTarget !== undefined
                       ? fixedTarget
                       : (target / getDaysInMonth(period)) * trackDay;
-                  const actualToday = daily[today] ?? 0;
+                  const actualCumulative = getCumulativeActual(daily, entry.result);
                   const kpiRatio = ratio({
                     plan: fixedTarget !== undefined ? target : targetThroughYesterday,
-                    result: actualToday,
+                    result: actualCumulative,
                   });
                   return (
                     <tr key={kpi} className="border-b border-border last:border-0">
                       <td className="px-5 py-3 text-sm font-medium text-foreground">{kpi}</td>
                       <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{formatNumber(target)}</td>
                       <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground">{formatNumber(actualToday)}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{formatNumber(Math.max(0, target - actualToday))}</td>
+                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground">{formatNumber(actualCumulative)}</td>
+                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{formatNumber(Math.max(0, target - actualCumulative))}</td>
                       <td className="border-l border-border px-3 py-3">
                         <div className="flex min-w-20 items-center gap-2">
                           <span className="w-10 font-mono text-xs tabular-nums text-muted">{formatPct(kpiRatio)}</span>
@@ -227,10 +217,7 @@ export function Overview() {
             (total, dep) => {
               const part = sumBlock(block[dep]);
               const daily = departmentDailyActuals[period]?.[dep] ?? {};
-              const hasDailyActuals = Object.keys(daily).length > 0;
-              const actual = hasDailyActuals
-                ? Object.values(daily).reduce((sum, value) => sum + value, 0)
-                : part.result;
+              const actual = getCumulativeActual(daily, part.result);
               return {
                 plan:
                   total.plan +
@@ -285,7 +272,7 @@ export function Overview() {
           {KPIS.map((kpi) => {
             const entry = branchKpis[kpi];
             const daily = branchDailyActuals[period]?.[kpi] ?? {};
-            const actual = Object.values(daily).reduce((sum, value) => sum + value, 0);
+            const actual = getCumulativeActual(daily, entry.result);
             return (
               <article key={kpi} className="rounded-xl bg-card-2/70 p-3">
                 <div className="mb-2 text-sm font-medium text-foreground">{kpi}</div>
@@ -297,15 +284,15 @@ export function Overview() {
                     disabled={FIXED_KPI_TARGETS[kpi] !== undefined}
                   />
                   <StatInput
-                    label="Today's Actual"
-                    value={daily[today] ?? 0}
+                    label="Cumulative Actual"
+                    value={daily[today] ?? actual}
                     onChange={(value) => setBranchDailyActual(kpi, today, value)}
                     disabled={false}
                   />
                 </div>
                 <div className="mt-2 flex justify-between text-xs text-subtle">
-                  <span>Actual: <span className="font-mono text-foreground">{formatNumber(actual || entry.result)}</span></span>
-                  <span>{formatPct(ratio({ plan: entry.plan, result: actual || entry.result }))}</span>
+                  <span>Actual: <span className="font-mono text-foreground">{formatNumber(actual)}</span></span>
+                  <span>{formatPct(ratio({ plan: entry.plan, result: actual }))}</span>
                 </div>
               </article>
             );
@@ -338,10 +325,7 @@ export function Overview() {
                   (total, dep) => {
                     const part = sumBlock(block[dep]);
                     const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                    const hasDailyActuals = Object.keys(daily).length > 0;
-                    const actual = hasDailyActuals
-                      ? Object.values(daily).reduce((sum, value) => sum + value, 0)
-                      : part.result;
+                    const actual = getCumulativeActual(daily, part.result);
                     return {
                       plan:
                         total.plan +
@@ -401,15 +385,6 @@ function MicroStat({ label, value }: { label: string; value: string }) {
         {value}
       </dd>
     </div>
-  );
-}
-
-function Legend({ swatch, label }: { swatch: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={cn("size-2 rounded-sm", swatch)} />
-      {label}
-    </span>
   );
 }
 
