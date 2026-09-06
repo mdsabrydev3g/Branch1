@@ -259,11 +259,11 @@ export function emptyDept(): DeptBlock {
   return block;
 }
 
-export function sumBlock(block: DeptBlock): Entry {
+export function sumBlock(block: Partial<DeptBlock> | undefined): Entry {
   return KPIS.reduce(
     (acc, kpi) => ({
-      plan: acc.plan + block[kpi].plan,
-      result: acc.result + block[kpi].result,
+      plan: acc.plan + (block?.[kpi]?.plan ?? 0),
+      result: acc.result + (block?.[kpi]?.result ?? 0),
     }),
     { plan: 0, result: 0 },
   );
@@ -311,6 +311,12 @@ export function formatPct(value: number): string {
 export function getDaysInMonth(period: PeriodId): number {
   const [year, month] = period.split("-").map(Number);
   return new Date(year, month, 0).getDate();
+}
+
+// Local-time YYYY-MM-DD (UTC would roll back a day for Egypt mornings).
+export function todayISO(date: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 export function calculateDailyTarget(monthlyTarget: number, period: PeriodId): number {

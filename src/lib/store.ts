@@ -3,8 +3,12 @@ import {
   createSeed,
   createBranchKpiSeed,
   migrateKpiKeys,
+  DEPS,
+  KPIS,
+  PERIODS,
   type BranchKpiData,
   type Dep,
+  type DeptBlock,
   type Entry,
   type Kpi,
   type PerformanceData,
@@ -172,16 +176,39 @@ function queueSave(
   );
 }
 
+function normalizeData(saved: PerformanceData): PerformanceData {
+  const out = createSeed();
+  for (const period of PERIODS) {
+    const block = saved[period.id];
+    if (!block) continue;
+    for (const dep of DEPS) {
+      const src = migrateKpiKeys({
+        ...(block[dep] ?? {}),
+      } as Record<string, Entry>) as Partial<DeptBlock>;
+      const deptBlock = {} as DeptBlock;
+      for (const kpi of KPIS) deptBlock[kpi] = src[kpi] ?? { plan: 0, result: 0 };
+      out[period.id][dep] = deptBlock;
+    }
+  }
+  return out;
+}
+
 function normalizeKpiKeys<
   T extends {
+    data: PerformanceData;
     branchKpis: BranchKpiData;
     dailyActuals: DailyActuals;
     branchDailyActuals: BranchDailyActuals;
   },
 >(state: T): T {
-  const branchKpis = migrateKpiKeys({
+  const migratedKpis = migrateKpiKeys({
     ...state.branchKpis,
-  } as Record<string, Entry>) as BranchKpiData;
+  } as Record<string, Entry>);
+  const branchKpis = createBranchKpiSeed();
+  for (const kpi of KPIS) {
+    if (migratedKpis[kpi]) branchKpis[kpi] = migratedKpis[kpi];
+  }
+  const data = normalizeData(state.data);
   const branchDailyActuals: BranchDailyActuals = {};
   for (const [period, kpis] of Object.entries(state.branchDailyActuals)) {
     branchDailyActuals[period as PeriodId] = migrateKpiKeys({
@@ -200,7 +227,7 @@ function normalizeKpiKeys<
     }
     dailyActuals[period as PeriodId] = mappedDeps as DailyActuals[PeriodId];
   }
-  return { ...state, branchKpis, branchDailyActuals, dailyActuals };
+  return { ...state, data, branchKpis, branchDailyActuals, dailyActuals };
 }
 
 export const usePerfStore = create<PerfState>((set, get) => ({

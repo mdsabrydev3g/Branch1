@@ -10,6 +10,7 @@ import {
   periodMeta,
   ratio,
   SALES_GROUPS,
+  todayISO,
   KPIS,
   sumBlock,
 } from "@/lib/domain";
@@ -30,7 +31,7 @@ export function Overview() {
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
   const setBranchDailyActual = usePerfStore((s) => s.setBranchDailyActual);
   const role = usePerfStore((s) => s.role);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const block = data[period];
   const totals = SALES_GROUPS.reduce(
     (total, group) =>

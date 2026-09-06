@@ -19,6 +19,7 @@ import {
   ratio,
   sumBlock,
   statusOf,
+  todayISO,
   type Dep,
 } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
@@ -76,14 +77,14 @@ function toneClass(tone: ReturnType<typeof statusOf>["tone"]) {
 }
 
 export function DepartmentView({ dep, compact = false }: { dep: Dep; compact?: boolean }) {
-  const block = usePerfStore((s) => s.data[s.period][dep]);
+  const block = usePerfStore((s) => s.data[s.period]?.[dep]);
   const period = usePerfStore((s) => s.period);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const setDepartmentDailyActual = usePerfStore((s) => s.setDepartmentDailyActual);
   const departmentTarget = usePerfStore((s) => s.departmentTargets[s.period]?.[dep]);
   const setDepartmentTarget = usePerfStore((s) => s.setDepartmentTarget);
   const role = usePerfStore((s) => s.role);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const daily = departmentDailyActuals[period]?.[dep] ?? {};
   const dailyActual = daily[today] ?? 0;
   const totals = sumBlock(block);
@@ -231,10 +232,10 @@ export function DepartmentGroupView({
   const data = usePerfStore((s) => s.data);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const summary = deps.reduce(
     (total, dep) => {
-      const fallback = sumBlock(data[period][dep]);
+      const fallback = sumBlock(data[period]?.[dep]);
       const daily = departmentDailyActuals[period]?.[dep] ?? {};
       return {
         target: total.target + (departmentTargets[period]?.[dep] ?? fallback.plan),

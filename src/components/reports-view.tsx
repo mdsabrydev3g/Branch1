@@ -20,6 +20,7 @@ import {
   periodMeta,
   ratio,
   sumBlock,
+  todayISO,
   type PeriodBlock,
   type DepartmentDailyActuals,
   type DepartmentTargets,
@@ -39,7 +40,7 @@ export function ReportsView() {
   const branchKpis = usePerfStore((s) => s.branchKpis);
   const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const meta = periodMeta(period);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const totals = DEPS.reduce(
     (total, dep) => {
       const fallback = sumBlock(block[dep]);
