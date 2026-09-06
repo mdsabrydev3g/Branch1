@@ -43,9 +43,8 @@ export function Overview() {
   const today = new Date().toISOString().slice(0, 10);
   const block = data[period];
 
-  // جلب القيمة التراكمية للـ Gross المدخلة يدوياً إن وجدت لتوحيد الحسابات
-  const dailyGross = branchDailyActuals[period]? me?.[today] ?? branchDailyActuals[period]? me?.[today] : branchDailyActuals[period]? me?;
-  const rawDailyGross = branchDailyActuals[period]? me? branchDailyActuals[period]? me : branchDailyActuals[period]? ["Gross"] ?? {};
+  // إصلاح خطأ الـ Syntax Error في الوصول لبيانات الـ Gross
+  const rawDailyGross = branchDailyActuals[period]?.["Gross"] ?? {};
   const manualGrossActual = getCumulativeActual(rawDailyGross, 0);
 
   const totals = SALES_GROUPS.reduce(
@@ -67,7 +66,6 @@ export function Overview() {
     { plan: 0, result: 0 },
   );
 
-  // اعتماد القيمة المدخلة يدوياً للـ Gross إذا كانت متوفرة بدلاً من المجموع التلقائي
   const finalBranchActual = manualGrossActual > 0 ? manualGrossActual : totals.result;
 
   const meta = periodMeta(period);
@@ -149,7 +147,6 @@ export function Overview() {
                   const groupTrack =
                     (groupTotals.target / getDaysInMonth(period)) * trackDay;
                   
-                  // توحيد قيمة الـ Actual للصف الخاص بـ Gross لتطابق القيمة المدخلة يدوياً
                   const displayActual = (group.title === "Gross" && manualGrossActual > 0)
                     ? manualGrossActual
                     : groupTotals.actual;
@@ -194,7 +191,6 @@ export function Overview() {
                       ? fixedTarget
                       : (target / getDaysInMonth(period)) * trackDay;
                   
-                  // التأكد من استخدام القيمة التراكمية الصحيحة
                   const actualCumulative = getCumulativeActual(daily, entry.result);
 
                   const kpiRatio = ratio({
