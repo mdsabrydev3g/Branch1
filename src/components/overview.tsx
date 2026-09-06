@@ -43,10 +43,6 @@ export function Overview() {
   const today = new Date().toISOString().slice(0, 10);
   const block = data[period];
 
-  // إصلاح خطأ الـ Syntax Error في الوصول لبيانات الـ Gross
-  const rawDailyGross = branchDailyActuals[period]?.["Gross"] ?? {};
-  const manualGrossActual = getCumulativeActual(rawDailyGross, 0);
-
   const totals = SALES_GROUPS.reduce(
     (total, group) =>
       group.deps.reduce(
@@ -66,15 +62,32 @@ export function Overview() {
     { plan: 0, result: 0 },
   );
 
-  const finalBranchActual = manualGrossActual > 0 ? manualGrossActual : totals.result;
-
   const meta = periodMeta(period);
   const trackDay = getTrackDay(period, today);
+
+  // حساب الأقسام الثلاثة الرئيسية لحساب الـ Gross الدقيق
+  const grossDeps = ["TV_AC", "MDA_SDA", "Mobile"]; // أسماء الأقسام الثلاثة
+  const gross3DepsTotals = SALES_GROUPS.filter(g => ["TV-AC", "MDA-SDA", "Mobile", "Gross"].includes(formatDisplayName(g.title)))
+    .flatMap(g => g.deps)
+    .reduce(
+      (acc, dep) => {
+        const fallback = sumBlock(block[dep]);
+        const daily = departmentDailyActuals[period]?.[dep] ?? {};
+        const target = departmentTargets[period]?.[dep] ?? fallback.plan;
+        const actual = getCumulativeActual(daily, fallback.result);
+        return {
+          plan: acc.plan + target,
+          actual: acc.actual + actual,
+        };
+      },
+      { plan: 0, actual: 0 }
+    );
+
   const branchTargetThroughYesterday =
     totals.plan > 0 ? (totals.plan / getDaysInMonth(period)) * trackDay : 0;
   const branchTrackIndex = ratio({
     plan: branchTargetThroughYesterday,
-    result: finalBranchActual,
+    result: totals.result,
   });
 
   return (
@@ -101,10 +114,10 @@ export function Overview() {
           <dl className="mt-3 space-y-2">
             <MicroStat label="Target" value={formatNumber(totals.plan)} />
             <MicroStat label="Track" value={formatNumber(branchTargetThroughYesterday)} />
-            <MicroStat label="Actual" value={formatNumber(finalBranchActual)} />
+            <MicroStat label="Actual" value={formatNumber(totals.result)} />
             <MicroStat
               label="Remaining"
-              value={formatNumber(Math.max(0, totals.plan - finalBranchActual))}
+              value={formatNumber(Math.max(0, totals.plan - totals.result))}
             />
             <MicroStat
               label="Daily Target"
@@ -131,29 +144,37 @@ export function Overview() {
               </thead>
               <tbody>
                 {SALES_GROUPS.map((group) => {
-                  const groupTotals = group.deps.reduce(
-                    (total, dep) => {
-                      const fallback = sumBlock(block[dep]);
-                      const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                      const target = departmentTargets[period]?.[dep] ?? fallback.plan;
-                      const actual = getCumulativeActual(daily, fallback.result);
-                      return {
-                        target: total.target + target,
-                        actual: total.actual + actual,
-                      };
-                    },
-                    { target: 0, actual: 0 },
-                  );
-                  const groupTrack =
-                    (groupTotals.target / getDaysInMonth(period)) * trackDay;
+                  const isGrossGroup = group.title === "Gross";
                   
-                  const displayActual = (group.title === "Gross" && manualGrossActual > 0)
-                    ? manualGrossActual
-                    : groupTotals.actual;
+                  // حساب مبيعات وتراك الأقسام الثلاثة فقط إذا كانت المجموعة Gross
+                  let groupTarget = 0;
+                  let groupActual = 0;
 
+                  if (isGrossGroup) {
+                    groupTarget = gross3DepsTotals.plan;
+                    groupActual = gross3DepsTotals.actual;
+                  } else {
+                    const res = group.deps.reduce(
+                      (total, dep) => {
+                        const fallback = sumBlock(block[dep]);
+                        const daily = departmentDailyActuals[period]?.[dep] ?? {};
+                        const target = departmentTargets[period]?.[dep] ?? fallback.plan;
+                        const actual = getCumulativeActual(daily, fallback.result);
+                        return {
+                          target: total.target + target,
+                          actual: total.actual + actual,
+                        };
+                      },
+                      { target: 0, actual: 0 }
+                    );
+                    groupTarget = res.target;
+                    groupActual = res.actual;
+                  }
+
+                  const groupTrack = (groupTarget / getDaysInMonth(period)) * trackDay;
                   const groupRatio = ratio({
                     plan: groupTrack,
-                    result: displayActual,
+                    result: groupActual,
                   });
 
                   return (
@@ -165,7 +186,7 @@ export function Overview() {
                         {formatNumber(groupTrack)}
                       </td>
                       <td className="border-l border-border px-1 py-2.5 font-mono text-xs font-semibold tabular-nums text-foreground text-center whitespace-nowrap">
-                        {formatNumber(displayActual)}
+                        {formatNumber(groupActual)}
                       </td>
                       <td className="border-l border-border px-1 py-2.5 text-center whitespace-nowrap">
                         <span className="font-mono text-[11px] font-semibold tabular-nums text-muted">
@@ -227,26 +248,33 @@ export function Overview() {
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {SALES_GROUPS.map((group) => {
-          const entry = group.deps.reduce(
-            (total, dep) => {
-              const part = sumBlock(block[dep]);
-              const daily = departmentDailyActuals[period]?.[dep] ?? {};
-              const actual = getCumulativeActual(daily, part.result);
-              return {
-                plan:
-                  total.plan +
-                  (departmentTargets[period]?.[dep] ?? part.plan),
-                result: total.result + actual,
-              };
-            },
-            { plan: 0, result: 0 },
-          );
+          const isGrossGroup = group.title === "Gross";
+          let groupPlan = 0;
+          let groupActual = 0;
 
-          const groupActual = (group.title === "Gross" && manualGrossActual > 0)
-            ? manualGrossActual
-            : entry.result;
+          if (isGrossGroup) {
+            groupPlan = gross3DepsTotals.plan;
+            groupActual = gross3DepsTotals.actual;
+          } else {
+            const entry = group.deps.reduce(
+              (total, dep) => {
+                const part = sumBlock(block[dep]);
+                const daily = departmentDailyActuals[period]?.[dep] ?? {};
+                const actual = getCumulativeActual(daily, part.result);
+                return {
+                  plan:
+                    total.plan +
+                    (departmentTargets[period]?.[dep] ?? part.plan),
+                  result: total.result + actual,
+                };
+              },
+              { plan: 0, result: 0 }
+            );
+            groupPlan = entry.plan;
+            groupActual = entry.result;
+          }
 
-          const r = ratio({ plan: entry.plan, result: groupActual });
+          const r = ratio({ plan: groupPlan, result: groupActual });
           return (
             <button
               key={group.id}
@@ -340,26 +368,33 @@ export function Overview() {
             </thead>
             <tbody>
               {SALES_GROUPS.map((group) => {
-                const entry = group.deps.reduce(
-                  (total, dep) => {
-                    const part = sumBlock(block[dep]);
-                    const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                    const actual = getCumulativeActual(daily, part.result);
-                    return {
-                      plan:
-                        total.plan +
-                        (departmentTargets[period]?.[dep] ?? part.plan),
-                      result: total.result + actual,
-                    };
-                  },
-                  { plan: 0, result: 0 },
-                );
+                const isGrossGroup = group.title === "Gross";
+                let groupPlan = 0;
+                let groupResult = 0;
 
-                const groupResult = (group.title === "Gross" && manualGrossActual > 0)
-                  ? manualGrossActual
-                  : entry.result;
+                if (isGrossGroup) {
+                  groupPlan = gross3DepsTotals.plan;
+                  groupResult = gross3DepsTotals.actual;
+                } else {
+                  const entry = group.deps.reduce(
+                    (total, dep) => {
+                      const part = sumBlock(block[dep]);
+                      const daily = departmentDailyActuals[period]?.[dep] ?? {};
+                      const actual = getCumulativeActual(daily, part.result);
+                      return {
+                        plan:
+                          total.plan +
+                          (departmentTargets[period]?.[dep] ?? part.plan),
+                        result: total.result + actual,
+                      };
+                    },
+                    { plan: 0, result: 0 }
+                  );
+                  groupPlan = entry.plan;
+                  groupResult = entry.result;
+                }
 
-                const r = ratio({ plan: entry.plan, result: groupResult });
+                const r = ratio({ plan: groupPlan, result: groupResult });
                 return (
                   <tr key={group.id} className="border-b border-border last:border-0">
                     <td className="px-5 py-3.5">
@@ -372,7 +407,7 @@ export function Overview() {
                       </button>
                     </td>
                     <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-muted">
-                      {formatNumber(entry.plan)}
+                      {formatNumber(groupPlan)}
                     </td>
                     <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-foreground">
                       {formatNumber(groupResult)}
