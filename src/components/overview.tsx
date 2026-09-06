@@ -117,21 +117,20 @@ export function Overview() {
         </div>
 
         <div className="hairline print-surface rounded-2xl bg-card/80 lg:col-span-8">
-          <div className="px-5 py-4">
+          <div className="px-4 py-4 sm:px-5">
             <h2 className="text-sm font-medium text-foreground">Main KPI performance</h2>
             <p className="text-xs text-subtle">Actual versus the track through yesterday</p>
           </div>
           
-          {/* تم إضافة التمرير الأفقي وتنسيق الخلية لمنع التداخل */}
-          <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[550px] border-collapse text-left">
+          <div className="w-full overflow-hidden">
+            <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
-                  <th className="px-4 py-3 font-medium whitespace-nowrap">KPI</th>
-                  <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Track</th>
-                  <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Actual</th>
-                  <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">%</th>
-                  <th className="border-l border-border px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                <tr className="border-y border-border text-[10px] tracking-tight text-subtle uppercase sm:text-xs">
+                  <th className="px-2 py-2.5 font-medium sm:px-4">KPI</th>
+                  <th className="border-l border-border px-1.5 py-2.5 font-medium sm:px-3">Track</th>
+                  <th className="border-l border-border px-1.5 py-2.5 font-medium sm:px-3">Actual</th>
+                  <th className="border-l border-border px-1 py-2.5 font-medium sm:px-3">%</th>
+                  <th className="border-l border-border px-1.5 py-2.5 font-medium sm:px-4">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,21 +158,21 @@ export function Overview() {
                   });
                   return (
                     <tr key={group.id} className="border-b border-border bg-card-2/35">
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-foreground">
+                      <td className="px-2 py-2 text-xs font-semibold text-foreground sm:px-4 sm:text-sm">
                         {group.title}
                       </td>
-                      <td className="whitespace-nowrap border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
+                      <td className="border-l border-border px-1.5 py-2 font-mono text-[11px] font-semibold tabular-nums text-muted sm:px-3 sm:text-sm">
                         {formatNumber(groupTrack)}
                       </td>
-                      <td className="whitespace-nowrap border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-foreground">
+                      <td className="border-l border-border px-1.5 py-2 font-mono text-[11px] font-semibold tabular-nums text-foreground sm:px-3 sm:text-sm">
                         {formatNumber(groupTotals.actual)}
                       </td>
-                      <td className="whitespace-nowrap border-l border-border px-3 py-3">
-                        <span className="font-mono text-xs font-semibold tabular-nums text-muted">
+                      <td className="border-l border-border px-1 py-2">
+                        <span className="font-mono text-[10px] font-semibold tabular-nums text-muted sm:text-xs">
                           {formatPct(groupRatio)}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap border-l border-border px-4 py-3">
+                      <td className="border-l border-border px-1.5 py-2 sm:px-4">
                         <StatusPill ratio={groupRatio} />
                       </td>
                     </tr>
@@ -184,7 +183,6 @@ export function Overview() {
                   const daily = branchDailyActuals[period]?.[kpi] ?? {};
                   const fixedTarget = FIXED_KPI_TARGETS[kpi];
                   
-                  // تعديل مطابقة الـ Gross لنسبة الـ 74% والدائرة العلويّة
                   const target =
                     kpi === "Gross" && totals.plan > 0
                       ? totals.plan
@@ -209,17 +207,17 @@ export function Overview() {
 
                   return (
                     <tr key={kpi} className="border-b border-border last:border-0">
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-foreground">{kpi}</td>
-                      <td className="whitespace-nowrap border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">
+                      <td className="px-2 py-2 text-xs font-medium text-foreground sm:px-4 sm:text-sm">{kpi}</td>
+                      <td className="border-l border-border px-1.5 py-2 font-mono text-[11px] tabular-nums text-muted sm:px-3 sm:text-sm">
                         {fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}
                       </td>
-                      <td className="whitespace-nowrap border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground">
+                      <td className="border-l border-border px-1.5 py-2 font-mono text-[11px] tabular-nums text-foreground sm:px-3 sm:text-sm">
                         {formatNumber(actual)}
                       </td>
-                      <td className="whitespace-nowrap border-l border-border px-3 py-3">
-                        <span className="font-mono text-xs tabular-nums text-muted">{formatPct(kpiRatio)}</span>
+                      <td className="border-l border-border px-1 py-2">
+                        <span className="font-mono text-[10px] tabular-nums text-muted sm:text-xs">{formatPct(kpiRatio)}</span>
                       </td>
-                      <td className="whitespace-nowrap border-l border-border px-4 py-3">
+                      <td className="border-l border-border px-1.5 py-2 sm:px-4">
                         <StatusPill ratio={kpiRatio} />
                       </td>
                     </tr>
