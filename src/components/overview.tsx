@@ -15,13 +15,10 @@ import { IndexRing } from "@/components/charts";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
 import { StatInput } from "@/components/stat-input";
-import { cn } from "@/lib/utils";
 
-// دالة مساعدة لجلب القيمة التراكمية الصحيحة بدلاً من جمع الأيام السابقة مضاعفةً
 function getCumulativeActual(dailyObj: Record<string, number>, fallbackResult: number): number {
   const values = Object.values(dailyObj);
   if (values.length === 0) return fallbackResult;
-  // أخذ القيمة التراكمية الأخيرة المدخلة مباشرة لمنع المضاعفة
   return Math.max(...values, 0);
 }
 
@@ -58,14 +55,11 @@ export function Overview() {
     { plan: 0, result: 0 },
   );
 
-  const index = ratio(totals);
   const meta = periodMeta(period);
   const trackDay = getTrackDay(period, today);
   const branchTargetThroughYesterday =
     totals.plan > 0 ? (totals.plan / getDaysInMonth(period)) * trackDay : 0;
-
   const branchActual = totals.result;
-
   const branchTrackIndex = ratio({
     plan: branchTargetThroughYesterday,
     result: branchActual,
@@ -107,22 +101,21 @@ export function Overview() {
           </dl>
         </div>
 
+        {/* قسم Main KPI performance المبسط */}
         <div className="hairline print-surface overflow-hidden rounded-2xl bg-card/80 lg:col-span-8">
           <div className="px-5 py-4">
             <h2 className="text-sm font-medium text-foreground">Main KPI performance</h2>
-            <p className="text-xs text-subtle">Actual through yesterday versus the target through yesterday</p>
+            <p className="text-xs text-subtle">Actual through yesterday versus the track</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
+          <div className="w-full">
+            <table className="w-full border-collapse text-left table-fixed">
               <thead>
                 <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
-                  <th className="px-5 py-3 font-medium">KPI</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Target</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Track</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Actual</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Remaining</th>
-                  <th className="border-l border-border px-3 py-3 font-medium">Actual / Track</th>
-                  <th className="border-l border-border px-5 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium w-1/3">KPI</th>
+                  <th className="border-l border-border px-3 py-3 font-medium text-center">Track</th>
+                  <th className="border-l border-border px-3 py-3 font-medium text-center">Actual</th>
+                  <th className="border-l border-border px-3 py-3 font-medium text-center">%</th>
+                  <th className="border-l border-border px-4 py-3 font-medium text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,27 +141,21 @@ export function Overview() {
                   });
                   return (
                     <tr key={group.id} className="border-b border-border bg-card-2/35">
-                      <td className="px-5 py-3 text-sm font-semibold text-foreground">
+                      <td className="px-4 py-3 text-sm font-semibold text-foreground truncate">
                         {group.title}
                       </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
-                        {formatNumber(groupTotals.target)}
-                      </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
+                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted text-center">
                         {formatNumber(groupTrack)}
                       </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-foreground">
+                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-foreground text-center">
                         {formatNumber(groupTotals.actual)}
                       </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
-                        {formatNumber(Math.max(0, groupTotals.target - groupTotals.actual))}
-                      </td>
-                      <td className="border-l border-border px-3 py-3">
+                      <td className="border-l border-border px-3 py-3 text-center">
                         <span className="font-mono text-xs font-semibold tabular-nums text-muted">
                           {formatPct(groupRatio)}
                         </span>
                       </td>
-                      <td className="border-l border-border px-5 py-3">
+                      <td className="border-l border-border px-4 py-3 text-center">
                         <StatusPill ratio={groupRatio} />
                       </td>
                     </tr>
@@ -191,17 +178,13 @@ export function Overview() {
                   });
                   return (
                     <tr key={kpi} className="border-b border-border last:border-0">
-                      <td className="px-5 py-3 text-sm font-medium text-foreground">{kpi}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{formatNumber(target)}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground">{formatNumber(actualCumulative)}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{formatNumber(Math.max(0, target - actualCumulative))}</td>
-                      <td className="border-l border-border px-3 py-3">
-                        <div className="flex min-w-20 items-center gap-2">
-                          <span className="w-10 font-mono text-xs tabular-nums text-muted">{formatPct(kpiRatio)}</span>
-                        </div>
+                      <td className="px-4 py-3 text-sm font-medium text-foreground truncate">{kpi}</td>
+                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted text-center">{fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}</td>
+                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground text-center">{formatNumber(actualCumulative)}</td>
+                      <td className="border-l border-border px-3 py-3 text-center">
+                        <span className="font-mono text-xs tabular-nums text-muted">{formatPct(kpiRatio)}</span>
                       </td>
-                      <td className="border-l border-border px-5 py-3"><StatusPill ratio={kpiRatio} /></td>
+                      <td className="border-l border-border px-4 py-3 text-center"><StatusPill ratio={kpiRatio} /></td>
                     </tr>
                   );
                 })}
