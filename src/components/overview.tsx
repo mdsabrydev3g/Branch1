@@ -1,195 +1,111 @@
-import { useMemo } from "react";
-import {
-  formatNumber,
-  formatPct,
-  getDaysInMonth,
-  ratio,
-  sumBlock,
-} from "@/lib/domain";
+import { useState } from "react";
+import { formatNumber, formatPct, ratio, sumBlock } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
 
-export function DepartmentView({ depKey }: { depKey: string }) {
+export function OverviewView() {
   const data = usePerfStore((s) => s.data);
   const period = usePerfStore((s) => s.period);
-  const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
-  const departmentTargets = usePerfStore((s) => s.departmentTargets);
+  const targets = usePerfStore((s) => s.targets);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const currentDay = new Date().getDate();
-  const currentMonthPeriod = today.slice(0, 7);
-
-  // حماية ضد القيم الغير معرفة
   const block = data?.[period] ?? {};
-  const targetDepKey = depKey || "Gross"; // استخدام Gross كافتراضي إذا كانت depKey غير معرفة
-  const depData = block[targetDepKey] ?? {};
+  const grossData = block["Gross"] ?? {};
+  const netData = block["Net"] ?? {};
 
-  // 1. حساب المستهدف الإجمالي للقسم بحماية كاملة
-  const fallback = sumBlock(depData);
-  const monthTarget = departmentTargets?.[period]?.[targetDepKey] ?? fallback.plan ?? 0;
+  const grossCalculated = sumBlock(grossData);
+  const netCalculated = sumBlock(netData);
 
-  // 2. حساب المحقق اليومي للأيام (1-15) و (16-30)
-  const dailyData = departmentDailyActuals?.[period]?.[targetDepKey] ?? {};
+  const grossTarget = targets?.[period]?.["Gross"] ?? grossCalculated.plan ?? 0;
+  const netTarget = targets?.[period]?.["Net"] ?? netCalculated.plan ?? 0;
 
-  const { firstHalfActual, secondHalfActual } = useMemo(() => {
-    let maxFirstHalf = 0;
-    let maxSecondHalf = 0;
-
-    Object.entries(dailyData).forEach(([dateStr, val]) => {
-      const dayNum = parseInt(dateStr.slice(-2), 10);
-      const numVal = Number(val) || 0;
-      if (dayNum <= 15) {
-        if (numVal > maxFirstHalf) maxFirstHalf = numVal;
-      } else {
-        if (numVal > maxSecondHalf) maxSecondHalf = numVal;
-      }
-    });
-
-    const actualFirst = maxFirstHalf > 0 ? maxFirstHalf : (fallback.result ?? 0);
-    const actualSecond = maxSecondHalf;
-
-    return {
-      firstHalfActual: actualFirst,
-      secondHalfActual: actualSecond,
-    };
-  }, [dailyData, fallback.result]);
-
-  // 3. حساب مستهدف الأجزاء
-  const daysInMonth = getDaysInMonth(period) || 30;
-  const firstHalfTarget = Math.round((monthTarget / daysInMonth) * 15);
-  const checkpoint80Target = Math.round(firstHalfTarget * 0.8);
-  const secondHalfTarget = monthTarget - firstHalfTarget;
-
-  // النسب المئوية للمستهدفات
-  const firstHalfRatio = ratio({ plan: firstHalfTarget, result: firstHalfActual });
-  const checkpointRatio = ratio({ plan: checkpoint80Target, result: firstHalfActual });
-  const secondHalfRatio = ratio({ plan: secondHalfTarget, result: secondHalfActual });
-
-  // شرط عرض كارت النصف الثاني
-  const showSecondHalf = currentDay >= 16 || period < currentMonthPeriod;
+  const grossRatio = ratio({ plan: grossTarget, result: grossCalculated.result });
+  const netRatio = ratio({ plan: netTarget, result: netCalculated.result });
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-1 sm:px-4">
-      {/* 1. First 15 days Card */}
+      {/* Gross Card */}
       <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
         <div className="mb-2 flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-medium text-foreground">First 15 days</h2>
-            <p className="text-xs text-subtle">Day 1 to Day 15</p>
+            <h2 className="text-sm font-medium text-foreground">Gross Sales</h2>
+            <p className="text-xs text-subtle">Total gross achievement</p>
           </div>
-          <StatusPill ratio={firstHalfRatio} />
+          <StatusPill ratio={grossRatio} />
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div>
             <span className="text-2xs uppercase text-subtle">Target</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(firstHalfTarget)}
+              {formatNumber(grossTarget)}
             </p>
           </div>
           <div>
             <span className="text-2xs uppercase text-subtle">Actual</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(firstHalfActual)}
+              {formatNumber(grossCalculated.result)}
             </p>
           </div>
           <div>
             <span className="text-2xs uppercase text-subtle">Remaining</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(Math.max(0, firstHalfTarget - firstHalfActual))}
+              {formatNumber(Math.max(0, grossTarget - grossCalculated.result))}
             </p>
           </div>
         </div>
         <div className="mt-4">
           <div className="mb-1 flex justify-between text-xs text-subtle">
             <span>Achievement</span>
-            <span>{formatPct(firstHalfRatio)}</span>
+            <span>{formatPct(grossRatio)}</span>
           </div>
-          <ProgressBar value={firstHalfRatio} />
+          <ProgressBar value={grossRatio} />
         </div>
       </section>
 
-      {/* 2. First-half 80% checkpoint Card */}
+      {/* Net Card */}
       <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
         <div className="mb-2 flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-medium text-foreground">First-half 80% checkpoint</h2>
-            <p className="text-xs text-subtle">80% of the first 15-day target</p>
+            <h2 className="text-sm font-medium text-foreground">Net Sales</h2>
+            <p className="text-xs text-subtle">Total net achievement</p>
           </div>
-          <StatusPill ratio={checkpointRatio} />
+          <StatusPill ratio={netRatio} />
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div>
             <span className="text-2xs uppercase text-subtle">Target</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(checkpoint80Target)}
+              {formatNumber(netTarget)}
             </p>
           </div>
           <div>
             <span className="text-2xs uppercase text-subtle">Actual</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(firstHalfActual)}
+              {formatNumber(netCalculated.result)}
             </p>
           </div>
           <div>
             <span className="text-2xs uppercase text-subtle">Remaining</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(Math.max(0, checkpoint80Target - firstHalfActual))}
+              {formatNumber(Math.max(0, netTarget - netCalculated.result))}
             </p>
           </div>
         </div>
         <div className="mt-4">
           <div className="mb-1 flex justify-between text-xs text-subtle">
             <span>Achievement</span>
-            <span>{formatPct(checkpointRatio)}</span>
+            <span>{formatPct(netRatio)}</span>
           </div>
-          <ProgressBar value={checkpointRatio} />
+          <ProgressBar value={netRatio} />
         </div>
       </section>
-
-      {/* 3. Second half Card */}
-      {showSecondHalf && (
-        <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
-          <div className="mb-2 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-medium text-foreground">Second half</h2>
-              <p className="text-xs text-subtle">Day 16 to Day 30</p>
-            </div>
-            <StatusPill ratio={secondHalfRatio} />
-          </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-            <div>
-              <span className="text-2xs uppercase text-subtle">Target</span>
-              <p className="font-mono text-base font-semibold text-foreground">
-                {formatNumber(secondHalfTarget)}
-              </p>
-            </div>
-            <div>
-              <span className="text-2xs uppercase text-subtle">Actual</span>
-              <p className="font-mono text-base font-semibold text-foreground">
-                {formatNumber(secondHalfActual)}
-              </p>
-            </div>
-            <div>
-              <span className="text-2xs uppercase text-subtle">Remaining</span>
-              <p className="font-mono text-base font-semibold text-foreground">
-                {formatNumber(Math.max(0, secondHalfTarget - secondHalfActual))}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="mb-1 flex justify-between text-xs text-subtle">
-              <span>Achievement</span>
-              <span>{formatPct(secondHalfRatio)}</span>
-            </div>
-            <ProgressBar value={secondHalfRatio} />
-          </div>
-        </section>
-      )}
     </div>
   );
 }
 
-export function DepartmentGroupView(props: { depKey: string }) {
-  return <DepartmentView {...props} />;
+// تصدير باسم Overview للربط مع shell.tsx
+export function Overview(props: any) {
+  return <OverviewView {...props} />;
 }
+
+export default OverviewView;
