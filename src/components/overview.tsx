@@ -22,6 +22,14 @@ function getCumulativeActual(dailyObj: Record<string, number>, fallbackResult: n
   return Math.max(...values, 0);
 }
 
+// دالة مساعدة لاختصار مسميات الـ KPI والـ Groups لشاشات الهاتف
+function formatDisplayName(name: string): string {
+  if (name === "TV + AC" || name === "TV & AC") return "TV-AC";
+  if (name === "MDA + SDA" || name === "MDA & SDA") return "MDA-SDA";
+  if (name === "Tech Care" || name === "TechCare") return "BOXI";
+  return name;
+}
+
 export function Overview() {
   const data = usePerfStore((s) => s.data);
   const period = usePerfStore((s) => s.period);
@@ -66,7 +74,7 @@ export function Overview() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-1 sm:px-4">
       <header className="flex flex-col gap-1">
         <p className="text-xs font-semibold tracking-kicker text-primary uppercase">
           Branch performance
@@ -101,21 +109,21 @@ export function Overview() {
           </dl>
         </div>
 
-        {/* قسم Main KPI performance المبسط */}
+        {/* قسم Main KPI performance المحسن للشاشات الصغار */}
         <div className="hairline print-surface overflow-hidden rounded-2xl bg-card/80 lg:col-span-8">
-          <div className="px-5 py-4">
+          <div className="px-3 py-3 sm:px-5 sm:py-4">
             <h2 className="text-sm font-medium text-foreground">Main KPI performance</h2>
             <p className="text-xs text-subtle">Actual through yesterday versus the track</p>
           </div>
-          <div className="w-full">
-            <table className="w-full border-collapse text-left table-fixed">
+          <div className="w-full overflow-x-hidden">
+            <table className="w-full border-collapse text-left text-xs">
               <thead>
-                <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
-                  <th className="px-4 py-3 font-medium w-1/3">KPI</th>
-                  <th className="border-l border-border px-3 py-3 font-medium text-center">Track</th>
-                  <th className="border-l border-border px-3 py-3 font-medium text-center">Actual</th>
-                  <th className="border-l border-border px-3 py-3 font-medium text-center">%</th>
-                  <th className="border-l border-border px-4 py-3 font-medium text-center">Status</th>
+                <tr className="border-y border-border text-[11px] tracking-tight text-subtle uppercase">
+                  <th className="w-[28%] px-2 py-2.5 font-medium">KPI</th>
+                  <th className="w-[22%] border-l border-border px-1 py-2.5 font-medium text-center">Track</th>
+                  <th className="w-[22%] border-l border-border px-1 py-2.5 font-medium text-center">Actual</th>
+                  <th className="w-[12%] border-l border-border px-1 py-2.5 font-medium text-center">%</th>
+                  <th className="w-[16%] border-l border-border px-1 py-2.5 font-medium text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,22 +149,24 @@ export function Overview() {
                   });
                   return (
                     <tr key={group.id} className="border-b border-border bg-card-2/35">
-                      <td className="px-4 py-3 text-sm font-semibold text-foreground truncate">
-                        {group.title}
+                      <td className="px-2 py-2.5 text-xs font-semibold text-foreground whitespace-nowrap">
+                        {formatDisplayName(group.title)}
                       </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted text-center">
+                      <td className="border-l border-border px-1 py-2.5 font-mono text-xs font-semibold tabular-nums text-muted text-center whitespace-nowrap">
                         {formatNumber(groupTrack)}
                       </td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-foreground text-center">
+                      <td className="border-l border-border px-1 py-2.5 font-mono text-xs font-semibold tabular-nums text-foreground text-center whitespace-nowrap">
                         {formatNumber(groupTotals.actual)}
                       </td>
-                      <td className="border-l border-border px-3 py-3 text-center">
-                        <span className="font-mono text-xs font-semibold tabular-nums text-muted">
+                      <td className="border-l border-border px-1 py-2.5 text-center whitespace-nowrap">
+                        <span className="font-mono text-[11px] font-semibold tabular-nums text-muted">
                           {formatPct(groupRatio)}
                         </span>
                       </td>
-                      <td className="border-l border-border px-4 py-3 text-center">
-                        <StatusPill ratio={groupRatio} />
+                      <td className="border-l border-border px-1 py-2.5 text-center">
+                        <div className="flex justify-center scale-90">
+                          <StatusPill ratio={groupRatio} />
+                        </div>
                       </td>
                     </tr>
                   );
@@ -178,13 +188,23 @@ export function Overview() {
                   });
                   return (
                     <tr key={kpi} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3 text-sm font-medium text-foreground truncate">{kpi}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted text-center">{fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}</td>
-                      <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground text-center">{formatNumber(actualCumulative)}</td>
-                      <td className="border-l border-border px-3 py-3 text-center">
-                        <span className="font-mono text-xs tabular-nums text-muted">{formatPct(kpiRatio)}</span>
+                      <td className="px-2 py-2.5 text-xs font-medium text-foreground whitespace-nowrap">
+                        {formatDisplayName(kpi)}
                       </td>
-                      <td className="border-l border-border px-4 py-3 text-center"><StatusPill ratio={kpiRatio} /></td>
+                      <td className="border-l border-border px-1 py-2.5 font-mono text-xs tabular-nums text-muted text-center whitespace-nowrap">
+                        {fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}
+                      </td>
+                      <td className="border-l border-border px-1 py-2.5 font-mono text-xs tabular-nums text-foreground text-center whitespace-nowrap">
+                        {formatNumber(actualCumulative)}
+                      </td>
+                      <td className="border-l border-border px-1 py-2.5 text-center whitespace-nowrap">
+                        <span className="font-mono text-[11px] tabular-nums text-muted">{formatPct(kpiRatio)}</span>
+                      </td>
+                      <td className="border-l border-border px-1 py-2.5 text-center">
+                        <div className="flex justify-center scale-90">
+                          <StatusPill ratio={kpiRatio} />
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -221,7 +241,7 @@ export function Overview() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-sm font-medium text-foreground">
-                    {group.title}
+                    {formatDisplayName(group.title)}
                   </div>
                   <div className="mt-0.5 text-xs text-subtle">
                     {group.deps.join(" · ")}
@@ -258,7 +278,7 @@ export function Overview() {
             const actual = getCumulativeActual(daily, entry.result);
             return (
               <article key={kpi} className="rounded-xl bg-card-2/70 p-3">
-                <div className="mb-2 text-sm font-medium text-foreground">{kpi}</div>
+                <div className="mb-2 text-sm font-medium text-foreground">{formatDisplayName(kpi)}</div>
                 <div className="grid grid-cols-2 gap-2">
                   <StatInput
                     label="Monthly Target"
@@ -327,7 +347,7 @@ export function Overview() {
                         onClick={() => setView(DEP_VIEW[group.deps[0]])}
                         className="font-medium text-foreground hover:text-primary"
                       >
-                        {group.title}
+                        {formatDisplayName(group.title)}
                       </button>
                     </td>
                     <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-muted">
