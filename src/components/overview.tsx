@@ -1,458 +1,195 @@
+import { useMemo } from "react";
 import {
-  DEP_VIEW,
   formatNumber,
   formatPct,
-  FIXED_KPI_TARGETS,
   getDaysInMonth,
-  periodMeta,
   ratio,
-  SALES_GROUPS,
-  KPIS,
   sumBlock,
 } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
-import { IndexRing } from "@/components/charts";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
-import { StatInput } from "@/components/stat-input";
 
-function getCumulativeActual(dailyObj: Record<string, number>, fallbackResult: number): number {
-  const values = Object.values(dailyObj);
-  if (values.length === 0) return fallbackResult;
-  return Math.max(...values, 0);
-}
-
-function formatDisplayName(name: string): string {
-  if (name === "TV + AC" || name === "TV & AC") return "TV-AC";
-  if (name === "MDA + SDA" || name === "MDA & SDA") return "MDA-SDA";
-  if (name === "Tech Care" || name === "TechCare") return "BOXI";
-  return name;
-}
-
-export function Overview() {
+export function DepartmentView({ depKey }: { depKey: string }) {
   const data = usePerfStore((s) => s.data);
   const period = usePerfStore((s) => s.period);
-  const setView = usePerfStore((s) => s.setView);
-  const branchKpis = usePerfStore((s) => s.branchKpis);
-  const setBranchValue = usePerfStore((s) => s.setBranchValue);
-  const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
-  const setBranchDailyActual = usePerfStore((s) => s.setBranchDailyActual);
-  const role = usePerfStore((s) => s.role);
+
   const today = new Date().toISOString().slice(0, 10);
-  const block = data[period];
+  const currentDay = new Date().getDate();
+  const currentMonthPeriod = today.slice(0, 7);
 
-  const totals = SALES_GROUPS.reduce(
-    (total, group) =>
-      group.deps.reduce(
-        (groupTotal, dep) => {
-          const part = sumBlock(block[dep]);
-          const daily = departmentDailyActuals[period]?.[dep] ?? {};
-          const cumulativeResult = getCumulativeActual(daily, part.result);
-          return {
-            plan:
-              groupTotal.plan +
-              (departmentTargets[period]?.[dep] ?? part.plan),
-            result: groupTotal.result + cumulativeResult,
-          };
-        },
-        total,
-      ),
-    { plan: 0, result: 0 },
-  );
+  // حماية ضد القيم الغير معرفة
+  const block = data?.[period] ?? {};
+  const targetDepKey = depKey || "Gross"; // استخدام Gross كافتراضي إذا كانت depKey غير معرفة
+  const depData = block[targetDepKey] ?? {};
 
-  const meta = periodMeta(period);
-  const trackDay = getTrackDay(period, today);
+  // 1. حساب المستهدف الإجمالي للقسم بحماية كاملة
+  const fallback = sumBlock(depData);
+  const monthTarget = departmentTargets?.[period]?.[targetDepKey] ?? fallback.plan ?? 0;
 
-  // حساب الأقسام الثلاثة الرئيسية لحساب الـ Gross الدقيق
-  const grossDeps = ["TV_AC", "MDA_SDA", "Mobile"]; // أسماء الأقسام الثلاثة
-  const gross3DepsTotals = SALES_GROUPS.filter(g => ["TV-AC", "MDA-SDA", "Mobile", "Gross"].includes(formatDisplayName(g.title)))
-    .flatMap(g => g.deps)
-    .reduce(
-      (acc, dep) => {
-        const fallback = sumBlock(block[dep]);
-        const daily = departmentDailyActuals[period]?.[dep] ?? {};
-        const target = departmentTargets[period]?.[dep] ?? fallback.plan;
-        const actual = getCumulativeActual(daily, fallback.result);
-        return {
-          plan: acc.plan + target,
-          actual: acc.actual + actual,
-        };
-      },
-      { plan: 0, actual: 0 }
-    );
+  // 2. حساب المحقق اليومي للأيام (1-15) و (16-30)
+  const dailyData = departmentDailyActuals?.[period]?.[targetDepKey] ?? {};
 
-  const branchTargetThroughYesterday =
-    totals.plan > 0 ? (totals.plan / getDaysInMonth(period)) * trackDay : 0;
-  const branchTrackIndex = ratio({
-    plan: branchTargetThroughYesterday,
-    result: totals.result,
-  });
+  const { firstHalfActual, secondHalfActual } = useMemo(() => {
+    let maxFirstHalf = 0;
+    let maxSecondHalf = 0;
+
+    Object.entries(dailyData).forEach(([dateStr, val]) => {
+      const dayNum = parseInt(dateStr.slice(-2), 10);
+      const numVal = Number(val) || 0;
+      if (dayNum <= 15) {
+        if (numVal > maxFirstHalf) maxFirstHalf = numVal;
+      } else {
+        if (numVal > maxSecondHalf) maxSecondHalf = numVal;
+      }
+    });
+
+    const actualFirst = maxFirstHalf > 0 ? maxFirstHalf : (fallback.result ?? 0);
+    const actualSecond = maxSecondHalf;
+
+    return {
+      firstHalfActual: actualFirst,
+      secondHalfActual: actualSecond,
+    };
+  }, [dailyData, fallback.result]);
+
+  // 3. حساب مستهدف الأجزاء
+  const daysInMonth = getDaysInMonth(period) || 30;
+  const firstHalfTarget = Math.round((monthTarget / daysInMonth) * 15);
+  const checkpoint80Target = Math.round(firstHalfTarget * 0.8);
+  const secondHalfTarget = monthTarget - firstHalfTarget;
+
+  // النسب المئوية للمستهدفات
+  const firstHalfRatio = ratio({ plan: firstHalfTarget, result: firstHalfActual });
+  const checkpointRatio = ratio({ plan: checkpoint80Target, result: firstHalfActual });
+  const secondHalfRatio = ratio({ plan: secondHalfTarget, result: secondHalfActual });
+
+  // شرط عرض كارت النصف الثاني
+  const showSecondHalf = currentDay >= 16 || period < currentMonthPeriod;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-1 sm:px-4">
-      <header className="flex flex-col gap-1">
-        <p className="text-xs font-semibold tracking-kicker text-primary uppercase">
-          Branch performance
-        </p>
-        <h1 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Fayoum 1 Branch
-        </h1>
-        <p className="max-w-xl text-pretty text-sm text-muted">
-          {meta.label}
-        </p>
-      </header>
-
-      <section className="grid gap-4 lg:grid-cols-12">
-        <div className="hairline print-surface rounded-2xl bg-card/80 p-5 lg:col-span-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-foreground">Branch Target</h2>
-            <StatusPill ratio={branchTrackIndex} />
-          </div>
-          <IndexRing value={branchTrackIndex} />
-          <dl className="mt-3 space-y-2">
-            <MicroStat label="Target" value={formatNumber(totals.plan)} />
-            <MicroStat label="Track" value={formatNumber(branchTargetThroughYesterday)} />
-            <MicroStat label="Actual" value={formatNumber(totals.result)} />
-            <MicroStat
-              label="Remaining"
-              value={formatNumber(Math.max(0, totals.plan - totals.result))}
-            />
-            <MicroStat
-              label="Daily Target"
-              value={formatNumber(totals.plan / getDaysInMonth(period))}
-            />
-          </dl>
-        </div>
-
-        <div className="hairline print-surface overflow-hidden rounded-2xl bg-card/80 lg:col-span-8">
-          <div className="px-3 py-3 sm:px-5 sm:py-4">
-            <h2 className="text-sm font-medium text-foreground">Main KPI performance</h2>
-            <p className="text-xs text-subtle">Actual through yesterday versus the track</p>
-          </div>
-          <div className="w-full overflow-x-hidden">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="border-y border-border text-[11px] tracking-tight text-subtle uppercase">
-                  <th className="w-[28%] px-2 py-2.5 font-medium">KPI</th>
-                  <th className="w-[22%] border-l border-border px-1 py-2.5 font-medium text-center">Track</th>
-                  <th className="w-[22%] border-l border-border px-1 py-2.5 font-medium text-center">Actual</th>
-                  <th className="w-[12%] border-l border-border px-1 py-2.5 font-medium text-center">%</th>
-                  <th className="w-[16%] border-l border-border px-1 py-2.5 font-medium text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {SALES_GROUPS.map((group) => {
-                  const isGrossGroup = group.title === "Gross";
-                  
-                  // حساب مبيعات وتراك الأقسام الثلاثة فقط إذا كانت المجموعة Gross
-                  let groupTarget = 0;
-                  let groupActual = 0;
-
-                  if (isGrossGroup) {
-                    groupTarget = gross3DepsTotals.plan;
-                    groupActual = gross3DepsTotals.actual;
-                  } else {
-                    const res = group.deps.reduce(
-                      (total, dep) => {
-                        const fallback = sumBlock(block[dep]);
-                        const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                        const target = departmentTargets[period]?.[dep] ?? fallback.plan;
-                        const actual = getCumulativeActual(daily, fallback.result);
-                        return {
-                          target: total.target + target,
-                          actual: total.actual + actual,
-                        };
-                      },
-                      { target: 0, actual: 0 }
-                    );
-                    groupTarget = res.target;
-                    groupActual = res.actual;
-                  }
-
-                  const groupTrack = (groupTarget / getDaysInMonth(period)) * trackDay;
-                  const groupRatio = ratio({
-                    plan: groupTrack,
-                    result: groupActual,
-                  });
-
-                  return (
-                    <tr key={group.id} className="border-b border-border bg-card-2/35">
-                      <td className="px-2 py-2.5 text-xs font-semibold text-foreground whitespace-nowrap">
-                        {formatDisplayName(group.title)}
-                      </td>
-                      <td className="border-l border-border px-1 py-2.5 font-mono text-xs font-semibold tabular-nums text-muted text-center whitespace-nowrap">
-                        {formatNumber(groupTrack)}
-                      </td>
-                      <td className="border-l border-border px-1 py-2.5 font-mono text-xs font-semibold tabular-nums text-foreground text-center whitespace-nowrap">
-                        {formatNumber(groupActual)}
-                      </td>
-                      <td className="border-l border-border px-1 py-2.5 text-center whitespace-nowrap">
-                        <span className="font-mono text-[11px] font-semibold tabular-nums text-muted">
-                          {formatPct(groupRatio)}
-                        </span>
-                      </td>
-                      <td className="border-l border-border px-1 py-2.5 text-center">
-                        <div className="flex justify-center scale-90">
-                          <StatusPill ratio={groupRatio} />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {KPIS.map((kpi) => {
-                  const entry = branchKpis[kpi];
-                  const daily = branchDailyActuals[period]?.[kpi] ?? {};
-                  const trackDay = getTrackDay(period, today);
-                  const fixedTarget = FIXED_KPI_TARGETS[kpi];
-                  const target = fixedTarget ?? entry.plan;
-                  const targetThroughYesterday =
-                    fixedTarget !== undefined
-                      ? fixedTarget
-                      : (target / getDaysInMonth(period)) * trackDay;
-                  
-                  const actualCumulative = getCumulativeActual(daily, entry.result);
-
-                  const kpiRatio = ratio({
-                    plan: fixedTarget !== undefined ? target : targetThroughYesterday,
-                    result: actualCumulative,
-                  });
-                  return (
-                    <tr key={kpi} className="border-b border-border last:border-0">
-                      <td className="px-2 py-2.5 text-xs font-medium text-foreground whitespace-nowrap">
-                        {formatDisplayName(kpi)}
-                      </td>
-                      <td className="border-l border-border px-1 py-2.5 font-mono text-xs tabular-nums text-muted text-center whitespace-nowrap">
-                        {fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}
-                      </td>
-                      <td className="border-l border-border px-1 py-2.5 font-mono text-xs tabular-nums text-foreground text-center whitespace-nowrap">
-                        {formatNumber(actualCumulative)}
-                      </td>
-                      <td className="border-l border-border px-1 py-2.5 text-center whitespace-nowrap">
-                        <span className="font-mono text-[11px] tabular-nums text-muted">{formatPct(kpiRatio)}</span>
-                      </td>
-                      <td className="border-l border-border px-1 py-2.5 text-center">
-                        <div className="flex justify-center scale-90">
-                          <StatusPill ratio={kpiRatio} />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {SALES_GROUPS.map((group) => {
-          const isGrossGroup = group.title === "Gross";
-          let groupPlan = 0;
-          let groupActual = 0;
-
-          if (isGrossGroup) {
-            groupPlan = gross3DepsTotals.plan;
-            groupActual = gross3DepsTotals.actual;
-          } else {
-            const entry = group.deps.reduce(
-              (total, dep) => {
-                const part = sumBlock(block[dep]);
-                const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                const actual = getCumulativeActual(daily, part.result);
-                return {
-                  plan:
-                    total.plan +
-                    (departmentTargets[period]?.[dep] ?? part.plan),
-                  result: total.result + actual,
-                };
-              },
-              { plan: 0, result: 0 }
-            );
-            groupPlan = entry.plan;
-            groupActual = entry.result;
-          }
-
-          const r = ratio({ plan: groupPlan, result: groupActual });
-          return (
-            <button
-              key={group.id}
-              type="button"
-              onClick={() => setView(DEP_VIEW[group.deps[0]])}
-              className="hairline pressable print-surface rounded-2xl bg-card/80 p-4 text-left"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-foreground">
-                    {formatDisplayName(group.title)}
-                  </div>
-                  <div className="mt-0.5 text-xs text-subtle">
-                    {group.deps.join(" · ")}
-                  </div>
-                </div>
-                <StatusPill ratio={r} />
-              </div>
-              <div className="mt-4 flex items-end justify-between">
-                <span className="font-mono text-2xl font-medium tabular-nums tracking-tight text-foreground">
-                  {formatPct(r)}
-                </span>
-                <span className="text-xs text-subtle">
-                  {formatNumber(groupActual)}
-                </span>
-              </div>
-              <ProgressBar value={r} className="mt-3" />
-            </button>
-          );
-        })}
-      </section>
-
-      {role === "manager" && (
-      <section className="hairline print-surface overflow-hidden rounded-2xl bg-card/80">
-        <div className="flex flex-col gap-1 px-5 py-4">
-          <h2 className="text-sm font-medium text-foreground">Main KPIs</h2>
-          <p className="text-xs text-subtle">
-            Enter the monthly target for each branch KPI here. Daily actuals are tracked separately in the manager view.
-          </p>
-        </div>
-        <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-2 lg:grid-cols-4">
-          {KPIS.map((kpi) => {
-            const entry = branchKpis[kpi];
-            const daily = branchDailyActuals[period]?.[kpi] ?? {};
-            const actual = getCumulativeActual(daily, entry.result);
-            return (
-              <article key={kpi} className="rounded-xl bg-card-2/70 p-3">
-                <div className="mb-2 text-sm font-medium text-foreground">{formatDisplayName(kpi)}</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <StatInput
-                    label="Monthly Target"
-                    value={FIXED_KPI_TARGETS[kpi] ?? entry.plan}
-                    onChange={(value) => setBranchValue(kpi, "plan", value)}
-                    disabled={FIXED_KPI_TARGETS[kpi] !== undefined}
-                  />
-                  <StatInput
-                    label="Cumulative Actual"
-                    value={daily[today] ?? actual}
-                    onChange={(value) => setBranchDailyActual(kpi, today, value)}
-                    disabled={false}
-                  />
-                </div>
-                <div className="mt-2 flex justify-between text-xs text-subtle">
-                  <span>Actual: <span className="font-mono text-foreground">{formatNumber(actual)}</span></span>
-                  <span>{formatPct(ratio({ plan: entry.plan, result: actual }))}</span>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-      )}
-
-      <section className="hairline print-surface overflow-hidden rounded-2xl bg-card/80">
-        <div className="flex items-center justify-between px-5 py-4">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-1 sm:px-4">
+      {/* 1. First 15 days Card */}
+      <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
+        <div className="mb-2 flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-medium text-foreground">Desk scorecard</h2>
-            <p className="text-xs text-subtle">Live from current period inputs</p>
+            <h2 className="text-sm font-medium text-foreground">First 15 days</h2>
+            <p className="text-xs text-subtle">Day 1 to Day 15</p>
+          </div>
+          <StatusPill ratio={firstHalfRatio} />
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <div>
+            <span className="text-2xs uppercase text-subtle">Target</span>
+            <p className="font-mono text-base font-semibold text-foreground">
+              {formatNumber(firstHalfTarget)}
+            </p>
+          </div>
+          <div>
+            <span className="text-2xs uppercase text-subtle">Actual</span>
+            <p className="font-mono text-base font-semibold text-foreground">
+              {formatNumber(firstHalfActual)}
+            </p>
+          </div>
+          <div>
+            <span className="text-2xs uppercase text-subtle">Remaining</span>
+            <p className="font-mono text-base font-semibold text-foreground">
+              {formatNumber(Math.max(0, firstHalfTarget - firstHalfActual))}
+            </p>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
-                <th className="px-5 py-3 font-medium">Desk</th>
-                <th className="border-l border-border px-3 py-3 font-medium">Plan</th>
-                <th className="border-l border-border px-3 py-3 font-medium">Result</th>
-                <th className="border-l border-border px-3 py-3 font-medium">Index</th>
-                <th className="border-l border-border px-5 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {SALES_GROUPS.map((group) => {
-                const isGrossGroup = group.title === "Gross";
-                let groupPlan = 0;
-                let groupResult = 0;
-
-                if (isGrossGroup) {
-                  groupPlan = gross3DepsTotals.plan;
-                  groupResult = gross3DepsTotals.actual;
-                } else {
-                  const entry = group.deps.reduce(
-                    (total, dep) => {
-                      const part = sumBlock(block[dep]);
-                      const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                      const actual = getCumulativeActual(daily, part.result);
-                      return {
-                        plan:
-                          total.plan +
-                          (departmentTargets[period]?.[dep] ?? part.plan),
-                        result: total.result + actual,
-                      };
-                    },
-                    { plan: 0, result: 0 }
-                  );
-                  groupPlan = entry.plan;
-                  groupResult = entry.result;
-                }
-
-                const r = ratio({ plan: groupPlan, result: groupResult });
-                return (
-                  <tr key={group.id} className="border-b border-border last:border-0">
-                    <td className="px-5 py-3.5">
-                      <button
-                        type="button"
-                        onClick={() => setView(DEP_VIEW[group.deps[0]])}
-                        className="font-medium text-foreground hover:text-primary"
-                      >
-                        {formatDisplayName(group.title)}
-                      </button>
-                    </td>
-                    <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-muted">
-                      {formatNumber(groupPlan)}
-                    </td>
-                    <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-foreground">
-                      {formatNumber(groupResult)}
-                    </td>
-                    <td className="border-l border-border px-3 py-3.5">
-                      <div className="flex min-w-36 items-center gap-2">
-                        <ProgressBar value={r} className="flex-1" />
-                        <span className="w-10 font-mono text-xs tabular-nums text-muted">
-                          {formatPct(r)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="border-l border-border px-5 py-3.5">
-                      <StatusPill ratio={r} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="mt-4">
+          <div className="mb-1 flex justify-between text-xs text-subtle">
+            <span>Achievement</span>
+            <span>{formatPct(firstHalfRatio)}</span>
+          </div>
+          <ProgressBar value={firstHalfRatio} />
         </div>
       </section>
+
+      {/* 2. First-half 80% checkpoint Card */}
+      <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
+        <div className="mb-2 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-medium text-foreground">First-half 80% checkpoint</h2>
+            <p className="text-xs text-subtle">80% of the first 15-day target</p>
+          </div>
+          <StatusPill ratio={checkpointRatio} />
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <div>
+            <span className="text-2xs uppercase text-subtle">Target</span>
+            <p className="font-mono text-base font-semibold text-foreground">
+              {formatNumber(checkpoint80Target)}
+            </p>
+          </div>
+          <div>
+            <span className="text-2xs uppercase text-subtle">Actual</span>
+            <p className="font-mono text-base font-semibold text-foreground">
+              {formatNumber(firstHalfActual)}
+            </p>
+          </div>
+          <div>
+            <span className="text-2xs uppercase text-subtle">Remaining</span>
+            <p className="font-mono text-base font-semibold text-foreground">
+              {formatNumber(Math.max(0, checkpoint80Target - firstHalfActual))}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="mb-1 flex justify-between text-xs text-subtle">
+            <span>Achievement</span>
+            <span>{formatPct(checkpointRatio)}</span>
+          </div>
+          <ProgressBar value={checkpointRatio} />
+        </div>
+      </section>
+
+      {/* 3. Second half Card */}
+      {showSecondHalf && (
+        <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-medium text-foreground">Second half</h2>
+              <p className="text-xs text-subtle">Day 16 to Day 30</p>
+            </div>
+            <StatusPill ratio={secondHalfRatio} />
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div>
+              <span className="text-2xs uppercase text-subtle">Target</span>
+              <p className="font-mono text-base font-semibold text-foreground">
+                {formatNumber(secondHalfTarget)}
+              </p>
+            </div>
+            <div>
+              <span className="text-2xs uppercase text-subtle">Actual</span>
+              <p className="font-mono text-base font-semibold text-foreground">
+                {formatNumber(secondHalfActual)}
+              </p>
+            </div>
+            <div>
+              <span className="text-2xs uppercase text-subtle">Remaining</span>
+              <p className="font-mono text-base font-semibold text-foreground">
+                {formatNumber(Math.max(0, secondHalfTarget - secondHalfActual))}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="mb-1 flex justify-between text-xs text-subtle">
+              <span>Achievement</span>
+              <span>{formatPct(secondHalfRatio)}</span>
+            </div>
+            <ProgressBar value={secondHalfRatio} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }
 
-function MicroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card-2/80 px-3 py-2.5">
-      <dt className="text-2xs tracking-wide text-subtle uppercase">
-        {label}
-      </dt>
-      <dd className="font-mono text-sm font-semibold tabular-nums text-foreground">
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-function getTrackDay(period: string, today: string): number {
-  const currentPeriod = today.slice(0, 7);
-  if (period < currentPeriod) {
-    const [year, month] = period.split("-").map(Number);
-    return new Date(year, month, 0).getDate();
-  }
-  if (period > currentPeriod) return 0;
-  return Math.max(0, Number(today.slice(-2)) - 1);
+export function DepartmentGroupView(props: { depKey: string }) {
+  return <DepartmentView {...props} />;
 }
