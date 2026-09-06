@@ -22,7 +22,6 @@ function getCumulativeActual(dailyObj: Record<string, number>, fallbackResult: n
   return Math.max(...values, 0);
 }
 
-// دالة مساعدة لاختصار مسميات الـ KPI والـ Groups لشاشات الهاتف
 function formatDisplayName(name: string): string {
   if (name === "TV + AC" || name === "TV & AC") return "TV-AC";
   if (name === "MDA + SDA" || name === "MDA & SDA") return "MDA-SDA";
@@ -44,6 +43,11 @@ export function Overview() {
   const today = new Date().toISOString().slice(0, 10);
   const block = data[period];
 
+  // جلب القيمة التراكمية للـ Gross المدخلة يدوياً إن وجدت لتوحيد الحسابات
+  const dailyGross = branchDailyActuals[period]? me?.[today] ?? branchDailyActuals[period]? me?.[today] : branchDailyActuals[period]? me?;
+  const rawDailyGross = branchDailyActuals[period]? me? branchDailyActuals[period]? me : branchDailyActuals[period]? ["Gross"] ?? {};
+  const manualGrossActual = getCumulativeActual(rawDailyGross, 0);
+
   const totals = SALES_GROUPS.reduce(
     (total, group) =>
       group.deps.reduce(
@@ -63,14 +67,16 @@ export function Overview() {
     { plan: 0, result: 0 },
   );
 
+  // اعتماد القيمة المدخلة يدوياً للـ Gross إذا كانت متوفرة بدلاً من المجموع التلقائي
+  const finalBranchActual = manualGrossActual > 0 ? manualGrossActual : totals.result;
+
   const meta = periodMeta(period);
   const trackDay = getTrackDay(period, today);
   const branchTargetThroughYesterday =
     totals.plan > 0 ? (totals.plan / getDaysInMonth(period)) * trackDay : 0;
-  const branchActual = totals.result;
   const branchTrackIndex = ratio({
     plan: branchTargetThroughYesterday,
-    result: branchActual,
+    result: finalBranchActual,
   });
 
   return (
@@ -97,10 +103,10 @@ export function Overview() {
           <dl className="mt-3 space-y-2">
             <MicroStat label="Target" value={formatNumber(totals.plan)} />
             <MicroStat label="Track" value={formatNumber(branchTargetThroughYesterday)} />
-            <MicroStat label="Actual" value={formatNumber(branchActual)} />
+            <MicroStat label="Actual" value={formatNumber(finalBranchActual)} />
             <MicroStat
               label="Remaining"
-              value={formatNumber(Math.max(0, totals.plan - branchActual))}
+              value={formatNumber(Math.max(0, totals.plan - finalBranchActual))}
             />
             <MicroStat
               label="Daily Target"
@@ -109,7 +115,6 @@ export function Overview() {
           </dl>
         </div>
 
-        {/* قسم Main KPI performance المحسن للشاشات الصغار */}
         <div className="hairline print-surface overflow-hidden rounded-2xl bg-card/80 lg:col-span-8">
           <div className="px-3 py-3 sm:px-5 sm:py-4">
             <h2 className="text-sm font-medium text-foreground">Main KPI performance</h2>
@@ -143,10 +148,17 @@ export function Overview() {
                   );
                   const groupTrack =
                     (groupTotals.target / getDaysInMonth(period)) * trackDay;
+                  
+                  // توحيد قيمة الـ Actual للصف الخاص بـ Gross لتطابق القيمة المدخلة يدوياً
+                  const displayActual = (group.title === "Gross" && manualGrossActual > 0)
+                    ? manualGrossActual
+                    : groupTotals.actual;
+
                   const groupRatio = ratio({
                     plan: groupTrack,
-                    result: groupTotals.actual,
+                    result: displayActual,
                   });
+
                   return (
                     <tr key={group.id} className="border-b border-border bg-card-2/35">
                       <td className="px-2 py-2.5 text-xs font-semibold text-foreground whitespace-nowrap">
@@ -156,7 +168,7 @@ export function Overview() {
                         {formatNumber(groupTrack)}
                       </td>
                       <td className="border-l border-border px-1 py-2.5 font-mono text-xs font-semibold tabular-nums text-foreground text-center whitespace-nowrap">
-                        {formatNumber(groupTotals.actual)}
+                        {formatNumber(displayActual)}
                       </td>
                       <td className="border-l border-border px-1 py-2.5 text-center whitespace-nowrap">
                         <span className="font-mono text-[11px] font-semibold tabular-nums text-muted">
@@ -181,7 +193,10 @@ export function Overview() {
                     fixedTarget !== undefined
                       ? fixedTarget
                       : (target / getDaysInMonth(period)) * trackDay;
+                  
+                  // التأكد من استخدام القيمة التراكمية الصحيحة
                   const actualCumulative = getCumulativeActual(daily, entry.result);
+
                   const kpiRatio = ratio({
                     plan: fixedTarget !== undefined ? target : targetThroughYesterday,
                     result: actualCumulative,
@@ -230,7 +245,12 @@ export function Overview() {
             },
             { plan: 0, result: 0 },
           );
-          const r = ratio(entry);
+
+          const groupActual = (group.title === "Gross" && manualGrossActual > 0)
+            ? manualGrossActual
+            : entry.result;
+
+          const r = ratio({ plan: entry.plan, result: groupActual });
           return (
             <button
               key={group.id}
@@ -254,7 +274,7 @@ export function Overview() {
                   {formatPct(r)}
                 </span>
                 <span className="text-xs text-subtle">
-                  {formatNumber(entry.result)}
+                  {formatNumber(groupActual)}
                 </span>
               </div>
               <ProgressBar value={r} className="mt-3" />
@@ -338,7 +358,12 @@ export function Overview() {
                   },
                   { plan: 0, result: 0 },
                 );
-                const r = ratio(entry);
+
+                const groupResult = (group.title === "Gross" && manualGrossActual > 0)
+                  ? manualGrossActual
+                  : entry.result;
+
+                const r = ratio({ plan: entry.plan, result: groupResult });
                 return (
                   <tr key={group.id} className="border-b border-border last:border-0">
                     <td className="px-5 py-3.5">
@@ -354,7 +379,7 @@ export function Overview() {
                       {formatNumber(entry.plan)}
                     </td>
                     <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-foreground">
-                      {formatNumber(entry.result)}
+                      {formatNumber(groupResult)}
                     </td>
                     <td className="border-l border-border px-3 py-3.5">
                       <div className="flex min-w-36 items-center gap-2">
