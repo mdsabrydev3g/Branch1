@@ -25,7 +25,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
   const fallback = sumBlock(block[depKey]);
   const monthTarget = departmentTargets[period]?.[depKey] ?? fallback.plan;
 
-  // 2. حساب المحقق اليومي للأيام (1-15) و (16-30) بشكل دقيق
+  // 2. حساب المحقق اليومي للأيام (1-15) و (16-30)
   const dailyData = departmentDailyActuals[period]?.[depKey] ?? {};
 
   const { firstHalfActual, secondHalfActual } = useMemo(() => {
@@ -61,7 +61,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
   const checkpointRatio = ratio({ plan: checkpoint80Target, result: firstHalfActual });
   const secondHalfRatio = ratio({ plan: secondHalfTarget, result: secondHalfActual });
 
-  // شرط عرض كارت النصف الثاني
+  // شرط عرض كارت النصف الثاني (من يوم 16 في الشهر الحالي أو عند عرض أشهر سابقة)
   const showSecondHalf = currentDay >= 16 || period < currentMonthPeriod;
 
   return (
@@ -142,7 +142,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
         </div>
       </section>
 
-      {/* 3. Second half Card */}
+      {/* 3. Second half Card - يظهر من يوم 16 فقط */}
       {showSecondHalf && (
         <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
           <div className="mb-2 flex items-center justify-between">
