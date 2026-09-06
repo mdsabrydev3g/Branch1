@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { formatNumber, formatPct, ratio, sumBlock } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
 import { ProgressBar } from "@/components/progress-bar";
@@ -10,17 +9,17 @@ export function OverviewView() {
   const targets = usePerfStore((s) => s.targets);
 
   const block = data?.[period] ?? {};
-  const grossData = block["Gross"] ?? {};
-  const netData = block["Net"] ?? {};
+  const grossData = block["Gross"];
+  const netData = block["Net"];
 
-  const grossCalculated = sumBlock(grossData);
-  const netCalculated = sumBlock(netData);
+  const grossCalculated = grossData ? sumBlock(grossData) : { plan: 0, result: 0 };
+  const netCalculated = netData ? sumBlock(netData) : { plan: 0, result: 0 };
 
-  const grossTarget = targets?.[period]?.["Gross"] ?? grossCalculated.plan ?? 0;
-  const netTarget = targets?.[period]?.["Net"] ?? netCalculated.plan ?? 0;
+  const grossTarget = targets?.[period]?.["Gross"] ?? grossCalculated?.plan ?? 0;
+  const netTarget = targets?.[period]?.["Net"] ?? netCalculated?.plan ?? 0;
 
-  const grossRatio = ratio({ plan: grossTarget, result: grossCalculated.result });
-  const netRatio = ratio({ plan: netTarget, result: netCalculated.result });
+  const grossRatio = ratio({ plan: grossTarget, result: grossCalculated?.result ?? 0 });
+  const netRatio = ratio({ plan: netTarget, result: netCalculated?.result ?? 0 });
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-1 sm:px-4">
@@ -43,13 +42,13 @@ export function OverviewView() {
           <div>
             <span className="text-2xs uppercase text-subtle">Actual</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(grossCalculated.result)}
+              {formatNumber(grossCalculated?.result ?? 0)}
             </p>
           </div>
           <div>
             <span className="text-2xs uppercase text-subtle">Remaining</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(Math.max(0, grossTarget - grossCalculated.result))}
+              {formatNumber(Math.max(0, grossTarget - (grossCalculated?.result ?? 0)))}
             </p>
           </div>
         </div>
@@ -81,13 +80,13 @@ export function OverviewView() {
           <div>
             <span className="text-2xs uppercase text-subtle">Actual</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(netCalculated.result)}
+              {formatNumber(netCalculated?.result ?? 0)}
             </p>
           </div>
           <div>
             <span className="text-2xs uppercase text-subtle">Remaining</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(Math.max(0, netTarget - netCalculated.result))}
+              {formatNumber(Math.max(0, netTarget - (netCalculated?.result ?? 0)))}
             </p>
           </div>
         </div>
@@ -103,7 +102,6 @@ export function OverviewView() {
   );
 }
 
-// تصدير باسم Overview للربط مع shell.tsx
 export function Overview(props: any) {
   return <OverviewView {...props} />;
 }
