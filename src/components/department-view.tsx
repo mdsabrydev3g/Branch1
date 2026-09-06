@@ -20,16 +20,14 @@ export function DepartmentView({ depKey }: { depKey?: string }) {
   const currentDay = new Date().getDate();
   const currentMonthPeriod = today.slice(0, 7);
 
-  // حماية ضد القيم الغير معرفة
   const safeDepKey = depKey || "Gross";
   const block = data?.[period] ?? {};
-  const depData = block[safeDepKey] || { plan: 0, result: 0 };
+  const depData = block[safeDepKey];
 
-  // 1. حساب المستهدف الإجمالي للقسم
-  const fallback = sumBlock(depData);
-  const monthTarget = departmentTargets?.[period]?.[safeDepKey] ?? fallback.plan ?? 0;
+  // حماية الاستدعاء لدالة sumBlock
+  const fallback = depData ? sumBlock(depData) : { plan: 0, result: 0 };
+  const monthTarget = departmentTargets?.[period]?.[safeDepKey] ?? fallback?.plan ?? 0;
 
-  // 2. حساب المحقق اليومي للأيام (1-15) و (16-30)
   const dailyData = departmentDailyActuals?.[period]?.[safeDepKey] ?? {};
 
   const { firstHalfActual, secondHalfActual } = useMemo(() => {
@@ -46,32 +44,29 @@ export function DepartmentView({ depKey }: { depKey?: string }) {
       }
     });
 
-    const actualFirst = maxFirstHalf > 0 ? maxFirstHalf : (fallback.result ?? 0);
+    const actualFirst = maxFirstHalf > 0 ? maxFirstHalf : (fallback?.result ?? 0);
     const actualSecond = maxSecondHalf;
 
     return {
       firstHalfActual: actualFirst,
       secondHalfActual: actualSecond,
     };
-  }, [dailyData, fallback.result]);
+  }, [dailyData, fallback?.result]);
 
-  // 3. حساب مستهدف الأجزاء
   const daysInMonth = getDaysInMonth(period) || 30;
   const firstHalfTarget = Math.round((monthTarget / daysInMonth) * 15);
   const checkpoint80Target = Math.round(firstHalfTarget * 0.8);
   const secondHalfTarget = monthTarget - firstHalfTarget;
 
-  // النسب المئوية للمستهدفات
   const firstHalfRatio = ratio({ plan: firstHalfTarget, result: firstHalfActual });
   const checkpointRatio = ratio({ plan: checkpoint80Target, result: firstHalfActual });
   const secondHalfRatio = ratio({ plan: secondHalfTarget, result: secondHalfActual });
 
-  // شرط عرض كارت النصف الثاني
   const showSecondHalf = currentDay >= 16 || period < currentMonthPeriod;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-1 sm:px-4">
-      {/* 1. First 15 days Card */}
+      {/* First 15 days Card */}
       <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
         <div className="mb-2 flex items-center justify-between">
           <div>
@@ -109,7 +104,7 @@ export function DepartmentView({ depKey }: { depKey?: string }) {
         </div>
       </section>
 
-      {/* 2. First-half 80% checkpoint Card */}
+      {/* First-half 80% checkpoint Card */}
       <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
         <div className="mb-2 flex items-center justify-between">
           <div>
@@ -147,7 +142,7 @@ export function DepartmentView({ depKey }: { depKey?: string }) {
         </div>
       </section>
 
-      {/* 3. Second half Card */}
+      {/* Second half Card */}
       {showSecondHalf && (
         <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
           <div className="mb-2 flex items-center justify-between">
