@@ -3,12 +3,10 @@ import {
   formatNumber,
   formatPct,
   getDaysInMonth,
-  periodMeta,
   ratio,
   sumBlock,
 } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
-import { IndexRing } from "@/components/charts";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
 
@@ -21,7 +19,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
   const today = new Date().toISOString().slice(0, 10);
   const currentDay = new Date().getDate();
   const currentMonthPeriod = today.slice(0, 7);
-  const block = data[period];
+  const block = data[period] ?? {};
 
   // 1. حساب المستهدف الإجمالي للقسم
   const fallback = sumBlock(block[depKey]);
@@ -43,7 +41,6 @@ export function DepartmentView({ depKey }: { depKey: string }) {
       }
     });
 
-    // استخدام fallback إذا لم تكن هناك مدخلات يومية
     const actualFirst = maxFirstHalf > 0 ? maxFirstHalf : fallback.result;
     const actualSecond = maxSecondHalf;
 
@@ -53,7 +50,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
     };
   }, [dailyData, fallback.result]);
 
-  // 3. حساب مستهدف الأجزاء (النصف الأول والنصف الثاني)
+  // 3. حساب مستهدف الأجزاء
   const daysInMonth = getDaysInMonth(period);
   const firstHalfTarget = Math.round((monthTarget / daysInMonth) * 15);
   const checkpoint80Target = Math.round(firstHalfTarget * 0.8);
@@ -64,7 +61,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
   const checkpointRatio = ratio({ plan: checkpoint80Target, result: firstHalfActual });
   const secondHalfRatio = ratio({ plan: secondHalfTarget, result: secondHalfActual });
 
-  // شرط عرض كارت النصف الثاني (من يوم 16 في الشهر الحالي أو عند عرض أشهر سابقة)
+  // شرط عرض كارت النصف الثاني
   const showSecondHalf = currentDay >= 16 || period < currentMonthPeriod;
 
   return (
@@ -99,7 +96,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
           </div>
         </div>
         <div className="mt-4">
-          <div className="flex justify-between text-xs text-subtle mb-1">
+          <div className="mb-1 flex justify-between text-xs text-subtle">
             <span>Achievement</span>
             <span>{formatPct(firstHalfRatio)}</span>
           </div>
@@ -137,7 +134,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
           </div>
         </div>
         <div className="mt-4">
-          <div className="flex justify-between text-xs text-subtle mb-1">
+          <div className="mb-1 flex justify-between text-xs text-subtle">
             <span>Achievement</span>
             <span>{formatPct(checkpointRatio)}</span>
           </div>
@@ -145,7 +142,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
         </div>
       </section>
 
-      {/* 3. Second half Card - يظهر فقط ابتداءً من يوم 16 */}
+      {/* 3. Second half Card */}
       {showSecondHalf && (
         <section className="hairline print-surface rounded-2xl bg-card/80 p-5">
           <div className="mb-2 flex items-center justify-between">
@@ -176,7 +173,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
             </div>
           </div>
           <div className="mt-4">
-            <div className="flex justify-between text-xs text-subtle mb-1">
+            <div className="mb-1 flex justify-between text-xs text-subtle">
               <span>Achievement</span>
               <span>{formatPct(secondHalfRatio)}</span>
             </div>
