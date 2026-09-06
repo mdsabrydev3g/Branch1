@@ -184,3 +184,7 @@ export function DepartmentView({ depKey }: { depKey: string }) {
     </div>
   );
 }
+
+export function DepartmentGroupView(props: { depKey: string }) {
+  return <DepartmentView {...props} />;
+}
