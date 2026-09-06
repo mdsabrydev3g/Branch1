@@ -8,18 +8,17 @@ export function OverviewView() {
   const period = usePerfStore((s) => s.period);
   const targets = usePerfStore((s) => s.targets);
 
-  const block = data?.[period] ?? {};
-  const grossData = block["Gross"];
-  const netData = block["Net"];
+  const block = data[period] || {};
 
-  const grossCalculated = grossData ? sumBlock(grossData) : { plan: 0, result: 0 };
-  const netCalculated = netData ? sumBlock(netData) : { plan: 0, result: 0 };
+  // التجمعي الإجمالي الصحيح كما كان في كودك الأصلي
+  const grossCalculated = sumBlock(block);
+  const grossTarget = targets[period]?.["Gross"] ?? grossCalculated.plan;
+  const grossRatio = ratio({ plan: grossTarget, result: grossCalculated.result });
 
-  const grossTarget = targets?.[period]?.["Gross"] ?? grossCalculated?.plan ?? 0;
-  const netTarget = targets?.[period]?.["Net"] ?? netCalculated?.plan ?? 0;
-
-  const grossRatio = ratio({ plan: grossTarget, result: grossCalculated?.result ?? 0 });
-  const netRatio = ratio({ plan: netTarget, result: netCalculated?.result ?? 0 });
+  // حساب Net من الـ block مباشرة
+  const netCalculated = block["Net"] ? sumBlock({ Net: block["Net"] }) : { plan: 0, result: 0 };
+  const netTarget = targets[period]?.["Net"] ?? netCalculated.plan;
+  const netRatio = ratio({ plan: netTarget, result: netCalculated.result });
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-1 sm:px-4">
@@ -42,13 +41,13 @@ export function OverviewView() {
           <div>
             <span className="text-2xs uppercase text-subtle">Actual</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(grossCalculated?.result ?? 0)}
+              {formatNumber(grossCalculated.result)}
             </p>
           </div>
           <div>
             <span className="text-2xs uppercase text-subtle">Remaining</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(Math.max(0, grossTarget - (grossCalculated?.result ?? 0)))}
+              {formatNumber(Math.max(0, grossTarget - grossCalculated.result))}
             </p>
           </div>
         </div>
@@ -80,13 +79,13 @@ export function OverviewView() {
           <div>
             <span className="text-2xs uppercase text-subtle">Actual</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(netCalculated?.result ?? 0)}
+              {formatNumber(netCalculated.result)}
             </p>
           </div>
           <div>
             <span className="text-2xs uppercase text-subtle">Remaining</span>
             <p className="font-mono text-base font-semibold text-foreground">
-              {formatNumber(Math.max(0, netTarget - (netCalculated?.result ?? 0)))}
+              {formatNumber(Math.max(0, netTarget - netCalculated.result))}
             </p>
           </div>
         </div>
