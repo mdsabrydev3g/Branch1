@@ -10,7 +10,7 @@ import { usePerfStore } from "@/lib/store";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
 
-export function DepartmentView({ depKey }: { depKey?: string }) {
+export function DepartmentView({ depKey }: { depKey: string }) {
   const data = usePerfStore((s) => s.data);
   const period = usePerfStore((s) => s.period);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
@@ -20,15 +20,14 @@ export function DepartmentView({ depKey }: { depKey?: string }) {
   const currentDay = new Date().getDate();
   const currentMonthPeriod = today.slice(0, 7);
 
-  const safeDepKey = depKey || "Gross";
-  const block = data?.[period] ?? {};
-  const depData = block[safeDepKey];
+  const block = data[period] || {};
 
-  // حماية الاستدعاء لدالة sumBlock
-  const fallback = depData ? sumBlock(depData) : { plan: 0, result: 0 };
-  const monthTarget = departmentTargets?.[period]?.[safeDepKey] ?? fallback?.plan ?? 0;
+  // 1. حساب المستهدف الأصلي
+  const fallback = sumBlock(block[depKey]);
+  const monthTarget = departmentTargets[period]?.[depKey] ?? fallback.plan;
 
-  const dailyData = departmentDailyActuals?.[period]?.[safeDepKey] ?? {};
+  // 2. المحقق اليومي
+  const dailyData = departmentDailyActuals[period]?.[depKey] || {};
 
   const { firstHalfActual, secondHalfActual } = useMemo(() => {
     let maxFirstHalf = 0;
@@ -36,7 +35,7 @@ export function DepartmentView({ depKey }: { depKey?: string }) {
 
     Object.entries(dailyData).forEach(([dateStr, val]) => {
       const dayNum = parseInt(dateStr.slice(-2), 10);
-      const numVal = typeof val === "number" ? val : 0;
+      const numVal = Number(val) || 0;
       if (dayNum <= 15) {
         if (numVal > maxFirstHalf) maxFirstHalf = numVal;
       } else {
@@ -44,16 +43,17 @@ export function DepartmentView({ depKey }: { depKey?: string }) {
       }
     });
 
-    const actualFirst = maxFirstHalf > 0 ? maxFirstHalf : (fallback?.result ?? 0);
+    const actualFirst = maxFirstHalf > 0 ? maxFirstHalf : fallback.result;
     const actualSecond = maxSecondHalf;
 
     return {
       firstHalfActual: actualFirst,
       secondHalfActual: actualSecond,
     };
-  }, [dailyData, fallback?.result]);
+  }, [dailyData, fallback.result]);
 
-  const daysInMonth = getDaysInMonth(period) || 30;
+  // 3. مستهدف الأجزاء
+  const daysInMonth = getDaysInMonth(period);
   const firstHalfTarget = Math.round((monthTarget / daysInMonth) * 15);
   const checkpoint80Target = Math.round(firstHalfTarget * 0.8);
   const secondHalfTarget = monthTarget - firstHalfTarget;
@@ -185,6 +185,6 @@ export function DepartmentView({ depKey }: { depKey?: string }) {
   );
 }
 
-export function DepartmentGroupView(props: { depKey?: string }) {
+export function DepartmentGroupView(props: { depKey: string }) {
   return <DepartmentView {...props} />;
 }
