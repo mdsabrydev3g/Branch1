@@ -33,6 +33,7 @@ export function Overview() {
   const role = usePerfStore((s) => s.role);
   const today = todayISO();
   const block = data[period];
+
   const totals = SALES_GROUPS.reduce(
     (total, group) =>
       group.deps.reduce(
@@ -51,12 +52,14 @@ export function Overview() {
       ),
     { plan: 0, result: 0 },
   );
+
   const meta = periodMeta(period);
   const trackDay = getTrackDay(period, today);
   const branchTargetThroughYesterday =
     totals.plan > 0
       ? Math.round((totals.plan / getDaysInMonth(period)) * trackDay)
       : 0;
+
   const branchActual = SALES_GROUPS.reduce(
     (total, group) =>
       total +
@@ -71,6 +74,7 @@ export function Overview() {
       ),
     0,
   );
+
   const branchTrackIndex = ratio({
     plan: branchTargetThroughYesterday,
     result: branchActual,
@@ -112,104 +116,118 @@ export function Overview() {
           </dl>
         </div>
 
-        <div className="hairline print-surface overflow-hidden rounded-2xl bg-card/80 lg:col-span-8">
+        <div className="hairline print-surface rounded-2xl bg-card/80 lg:col-span-8">
           <div className="px-5 py-4">
             <h2 className="text-sm font-medium text-foreground">Main KPI performance</h2>
             <p className="text-xs text-subtle">Actual versus the track through yesterday</p>
           </div>
-          <table className="w-full table-fixed border-collapse text-left">
-            <thead>
-              <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
-                <th className="w-1/4 px-5 py-3 font-medium">KPI</th>
-                <th className="border-l border-border px-3 py-3 font-medium">Track</th>
-                <th className="border-l border-border px-3 py-3 font-medium">Actual</th>
-                <th className="border-l border-border px-3 py-3 font-medium">%</th>
-                <th className="w-1/5 border-l border-border px-4 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {SALES_GROUPS.map((group) => {
-                const groupTotals = group.deps.reduce(
-                  (total, dep) => {
-                    const fallback = sumBlock(block[dep]);
-                    const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                    const target = departmentTargets[period]?.[dep] ?? fallback.plan;
-                    return {
-                      target: total.target + target,
-                      actual:
-                        total.actual +
-                        departmentMonthActual(daily, fallback.result),
-                    };
-                  },
-                  { target: 0, actual: 0 },
-                );
-                const groupTrack = Math.round(
-                  (groupTotals.target / getDaysInMonth(period)) * trackDay,
-                );
-                const groupRatio = ratio({
-                  plan: groupTrack,
-                  result: groupTotals.actual,
-                });
-                return (
-                  <tr key={group.id} className="border-b border-border bg-card-2/35">
-                    <td className="truncate px-5 py-3 text-sm font-semibold text-foreground">
-                      {group.title}
-                    </td>
-                    <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
-                      {formatNumber(groupTrack)}
-                    </td>
-                    <td className="border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-foreground">
-                      {formatNumber(groupTotals.actual)}
-                    </td>
-                    <td className="border-l border-border px-3 py-3">
-                      <span className="font-mono text-xs font-semibold tabular-nums text-muted">
-                        {formatPct(groupRatio)}
-                      </span>
-                    </td>
-                    <td className="border-l border-border px-4 py-3">
-                      <StatusPill ratio={groupRatio} />
-                    </td>
-                  </tr>
-                );
-              })}
-              {KPIS.map((kpi) => {
-                const entry = branchKpis[kpi];
-                const daily = branchDailyActuals[period]?.[kpi] ?? {};
-                const fixedTarget = FIXED_KPI_TARGETS[kpi];
-                // Gross is the sum of all department sales: derive its
-                // monthly target from the department targets, not manual input.
-                const target =
-                  kpi === "Gross" && totals.plan > 0
-                    ? totals.plan
-                    : (fixedTarget ?? entry.plan);
-                const targetThroughYesterday =
-                  fixedTarget !== undefined
-                    ? fixedTarget
-                    : Math.round((target / getDaysInMonth(period)) * trackDay);
-                const actual =
-                  kpi === "CR"
-                    ? latestDailyValue(daily)
-                    : (daily[today] ?? 0);
-                const kpiRatio = ratio({
-                  plan: fixedTarget !== undefined ? target : targetThroughYesterday,
-                  result: actual,
-                });
-                return (
-                  <tr key={kpi} className="border-b border-border last:border-0">
-                    <td className="truncate px-5 py-3 text-sm font-medium text-foreground">{kpi}</td>
-                    <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">{fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}</td>
-                    <td className="border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground">{formatNumber(actual)}</td>
-                    <td className="border-l border-border px-3 py-3">
-                      <div className="flex min-w-20 items-center gap-2">
-                        <span className="w-10 font-mono text-xs tabular-nums text-muted">{formatPct(kpiRatio)}</span>
-                      </div>
-                    </td>
-                    <td className="border-l border-border px-4 py-3"><StatusPill ratio={kpiRatio} /></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          
+          {/* تم إضافة التمرير الأفقي وتنسيق الخلية لمنع التداخل */}
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[550px] border-collapse text-left">
+              <thead>
+                <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
+                  <th className="px-4 py-3 font-medium whitespace-nowrap">KPI</th>
+                  <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Track</th>
+                  <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Actual</th>
+                  <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">%</th>
+                  <th className="border-l border-border px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {SALES_GROUPS.map((group) => {
+                  const groupTotals = group.deps.reduce(
+                    (total, dep) => {
+                      const fallback = sumBlock(block[dep]);
+                      const daily = departmentDailyActuals[period]?.[dep] ?? {};
+                      const target = departmentTargets[period]?.[dep] ?? fallback.plan;
+                      return {
+                        target: total.target + target,
+                        actual:
+                          total.actual +
+                          departmentMonthActual(daily, fallback.result),
+                      };
+                    },
+                    { target: 0, actual: 0 },
+                  );
+                  const groupTrack = Math.round(
+                    (groupTotals.target / getDaysInMonth(period)) * trackDay,
+                  );
+                  const groupRatio = ratio({
+                    plan: groupTrack,
+                    result: groupTotals.actual,
+                  });
+                  return (
+                    <tr key={group.id} className="border-b border-border bg-card-2/35">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-foreground">
+                        {group.title}
+                      </td>
+                      <td className="whitespace-nowrap border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-muted">
+                        {formatNumber(groupTrack)}
+                      </td>
+                      <td className="whitespace-nowrap border-l border-border px-3 py-3 font-mono text-sm font-semibold tabular-nums text-foreground">
+                        {formatNumber(groupTotals.actual)}
+                      </td>
+                      <td className="whitespace-nowrap border-l border-border px-3 py-3">
+                        <span className="font-mono text-xs font-semibold tabular-nums text-muted">
+                          {formatPct(groupRatio)}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap border-l border-border px-4 py-3">
+                        <StatusPill ratio={groupRatio} />
+                      </td>
+                    </tr>
+                  );
+                })}
+                {KPIS.map((kpi) => {
+                  const entry = branchKpis[kpi];
+                  const daily = branchDailyActuals[period]?.[kpi] ?? {};
+                  const fixedTarget = FIXED_KPI_TARGETS[kpi];
+                  
+                  // تعديل مطابقة الـ Gross لنسبة الـ 74% والدائرة العلويّة
+                  const target =
+                    kpi === "Gross" && totals.plan > 0
+                      ? totals.plan
+                      : (fixedTarget ?? entry.plan);
+                  
+                  const targetThroughYesterday =
+                    fixedTarget !== undefined
+                      ? fixedTarget
+                      : Math.round((target / getDaysInMonth(period)) * trackDay);
+
+                  const actual =
+                    kpi === "Gross"
+                      ? branchActual
+                      : kpi === "CR"
+                      ? latestDailyValue(daily)
+                      : (daily[today] ?? 0);
+
+                  const kpiRatio = ratio({
+                    plan: fixedTarget !== undefined ? target : targetThroughYesterday,
+                    result: actual,
+                  });
+
+                  return (
+                    <tr key={kpi} className="border-b border-border last:border-0">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-foreground">{kpi}</td>
+                      <td className="whitespace-nowrap border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-muted">
+                        {fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}
+                      </td>
+                      <td className="whitespace-nowrap border-l border-border px-3 py-3 font-mono text-sm tabular-nums text-foreground">
+                        {formatNumber(actual)}
+                      </td>
+                      <td className="whitespace-nowrap border-l border-border px-3 py-3">
+                        <span className="font-mono text-xs tabular-nums text-muted">{formatPct(kpiRatio)}</span>
+                      </td>
+                      <td className="whitespace-nowrap border-l border-border px-4 py-3">
+                        <StatusPill ratio={kpiRatio} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -274,7 +292,9 @@ export function Overview() {
             const entry = branchKpis[kpi];
             const daily = branchDailyActuals[period]?.[kpi] ?? {};
             const actual =
-              kpi === "CR"
+              kpi === "Gross"
+                ? branchActual
+                : kpi === "CR"
                 ? latestDailyValue(daily)
                 : Object.values(daily).reduce((sum, value) => sum + value, 0);
             const target =
@@ -318,11 +338,11 @@ export function Overview() {
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
-                <th className="px-5 py-3 font-medium">Desk</th>
-                <th className="border-l border-border px-3 py-3 font-medium">Plan</th>
-                <th className="border-l border-border px-3 py-3 font-medium">Result</th>
-                <th className="border-l border-border px-3 py-3 font-medium">Index</th>
-                <th className="border-l border-border px-5 py-3 font-medium">Status</th>
+                <th className="px-5 py-3 font-medium whitespace-nowrap">Desk</th>
+                <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Plan</th>
+                <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Result</th>
+                <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Index</th>
+                <th className="border-l border-border px-5 py-3 font-medium whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -343,7 +363,7 @@ export function Overview() {
                 const r = ratio(entry);
                 return (
                   <tr key={group.id} className="border-b border-border last:border-0">
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => setView(DEP_VIEW[group.deps[0]])}
@@ -352,13 +372,13 @@ export function Overview() {
                         {group.title}
                       </button>
                     </td>
-                    <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-muted">
+                    <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-muted whitespace-nowrap">
                       {formatNumber(entry.plan)}
                     </td>
-                    <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-foreground">
+                    <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-foreground whitespace-nowrap">
                       {formatNumber(entry.result)}
                     </td>
-                    <td className="border-l border-border px-3 py-3.5">
+                    <td className="border-l border-border px-3 py-3.5 whitespace-nowrap">
                       <div className="flex min-w-36 items-center gap-2">
                         <ProgressBar value={r} className="flex-1" />
                         <span className="w-10 font-mono text-xs tabular-nums text-muted">
@@ -366,7 +386,7 @@ export function Overview() {
                         </span>
                       </div>
                     </td>
-                    <td className="border-l border-border px-5 py-3.5">
+                    <td className="border-l border-border px-5 py-3.5 whitespace-nowrap">
                       <StatusPill ratio={r} />
                     </td>
                   </tr>
