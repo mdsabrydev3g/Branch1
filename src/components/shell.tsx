@@ -7,6 +7,7 @@ import {
   Printer,
   Smartphone,
   Tv,
+  Edit,
 } from "lucide-react";
 import { PERIODS, VIEW_DEP, type ViewId } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Overview } from "@/components/overview";
 import { DepartmentGroupView } from "@/components/department-view";
 import { ReportsView } from "@/components/reports-view";
+import { DailyEditor } from "@/components/daily-editor";
 import { cn } from "@/lib/utils";
 
 const NAV: {
@@ -23,9 +25,10 @@ const NAV: {
   icon: typeof LayoutGrid;
 }[] = [
   { id: "overview", label: "Overview", short: "Home", icon: LayoutGrid },
-  { id: "tv", label: "TV-AC", short: "TV-AC", icon: Tv },
-  { id: "mda", label: "MDA-SDA", short: "MDA-SDA", icon: Layers },
+  { id: "tv", label: "TV — AC", short: "TV-AC", icon: Tv },
+  { id: "mda", label: "MDA - SDA", short: "MDA - SDA", icon: Layers },
   { id: "mobile", label: "Mobile", short: "Mobile", icon: Smartphone },
+  { id: "daily", label: "Daily Editor", short: "Daily", icon: Edit },
   { id: "reports", label: "Reports", short: "Report", icon: FileBarChart },
 ];
 
@@ -35,6 +38,26 @@ export function Shell() {
 
   useEffect(() => {
     hydrate();
+
+    // Auto-polling every 15s to keep all employee screens synchronized in real-time
+    const interval = setInterval(() => {
+      hydrate(true);
+    }, 15000);
+
+    const onSync = () => {
+      if (document.visibilityState === "visible") {
+        hydrate(true);
+      }
+    };
+
+    window.addEventListener("focus", onSync);
+    document.addEventListener("visibilitychange", onSync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onSync);
+      document.removeEventListener("visibilitychange", onSync);
+    };
   }, [hydrate]);
 
   return (
@@ -45,10 +68,10 @@ export function Shell() {
         <main className="flex-1 px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-10">
           {view === "overview" && <Overview />}
           {view === "tv" && (
-            <DepartmentGroupView title="TV-AC" deps={["TV", "AC"]} />
+            <DepartmentGroupView title="TV + AC" deps={["TV", "AC"]} />
           )}
           {view === "mda" && (
-            <DepartmentGroupView title="MDA-SDA" deps={["MDA", "SDA"]} />
+            <DepartmentGroupView title="MDA + SDA" deps={["MDA", "SDA"]} />
           )}
           {view === "mobile" && (
             <DepartmentGroupView
@@ -56,6 +79,7 @@ export function Shell() {
               deps={["IT Laptop", "IT Other", "Telecom Mobile", "Telecom ACC"]}
             />
           )}
+          {view === "daily" && <DailyEditor />}
           {view === "reports" && <ReportsView />}
         </main>
       </div>
@@ -74,7 +98,6 @@ function Brand() {
         <div className="truncate text-sm font-semibold text-foreground">
           Fayoum 1
         </div>
-        <div className="truncate text-xs text-subtle">Command Center</div>
       </div>
     </div>
   );
@@ -167,24 +190,17 @@ function Topbar() {
             {role === "manager" ? "Exit Manager Mode" : "Manager"}
           </button>
         </div>
-        <div className="grid min-w-0 flex-1 grid-cols-6 gap-1 lg:flex lg:flex-none">
+        <select
+          value={period}
+          onChange={(e) => setPeriod(e.target.value as any)}
+          className="h-11 min-w-[120px] appearance-none rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground outline-none focus:border-primary"
+        >
           {PERIODS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setPeriod(p.id)}
-              aria-pressed={period === p.id}
-              className={cn(
-                "pressable h-11 rounded-lg text-xs font-medium sm:text-sm lg:px-3",
-                period === p.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted hover:bg-card-2 hover:text-foreground",
-              )}
-            >
-              {p.short}
-            </button>
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
           ))}
-        </div>
+        </select>
         {(view === "overview" || view === "reports") && (
           <Button
             variant="outline"

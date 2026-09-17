@@ -1,391 +1,344 @@
+import { useMemo } from "react";
 import {
-  DEP_VIEW,
-  departmentMonthActual,
   formatNumber,
   formatPct,
-  FIXED_KPI_TARGETS,
   getDaysInMonth,
   getTrackDay,
-  latestDailyValue,
-  periodMeta,
-  ratio,
-  SALES_GROUPS,
-  todayISO,
-  KPIS,
   sumBlock,
+  calculateTrackTarget,
+  calculateDailyTarget,
+  statusOf,
+  latestDailyValue,
+  KPIS,
+  SALES_GROUPS,
+  DEPS,
+  type Kpi,
+  type Dep,
 } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
-import { IndexRing } from "@/components/charts";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
-import { StatInput } from "@/components/stat-input";
 
-export function Overview() {
+// Helper function for ratio calculation
+function calculateRatio(plan: number, result: number): number {
+  if (!plan) return result > 0 ? 1 : 0;
+  return result / plan;
+}
+
+export function OverviewView() {
   const data = usePerfStore((s) => s.data);
   const period = usePerfStore((s) => s.period);
-  const setView = usePerfStore((s) => s.setView);
-  const branchKpis = usePerfStore((s) => s.branchKpis);
-  const setBranchValue = usePerfStore((s) => s.setBranchValue);
-  const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
-  const setBranchDailyActual = usePerfStore((s) => s.setBranchDailyActual);
+  const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
+  const branchKpiTargets = usePerfStore((s) => s.branchKpiTargets);
+  const branchKpis = usePerfStore((s) => s.branchKpis);
   const role = usePerfStore((s) => s.role);
-  const today = todayISO();
-  const block = data[period];
 
-  const totals = SALES_GROUPS.reduce(
-    (total, group) =>
-      group.deps.reduce(
-        (groupTotal, dep) => {
-          const part = sumBlock(block[dep]);
-          const daily = departmentDailyActuals[period]?.[dep] ?? {};
-          return {
-            plan:
-              groupTotal.plan +
-              (departmentTargets[period]?.[dep] ?? part.plan),
-            result:
-              groupTotal.result + departmentMonthActual(daily, part.result),
-          };
-        },
-        total,
-      ),
-    { plan: 0, result: 0 },
-  );
+  const block = data[period] || {};
+  const daysInMonth = getDaysInMonth(period);
+  const trackDay = getTrackDay(period);
 
-  const meta = periodMeta(period);
-  const trackDay = getTrackDay(period, today);
-  const branchTargetThroughYesterday =
-    totals.plan > 0
-      ? Math.round((totals.plan / getDaysInMonth(period)) * trackDay)
-      : 0;
+  // حساب القيم لكل قسم
+  const deptData = useMemo(() => {
+    const result: Record<
+      Dep,
+      {
+        target: number;
+        actual: number;
+        track: number;
+        dailyTarget: number;
+      }
+    > = {} as any;
 
-  const branchActual = SALES_GROUPS.reduce(
-    (total, group) =>
-      total +
-      group.deps.reduce(
-        (groupTotal, dep) =>
-          groupTotal +
-          departmentMonthActual(
-            departmentDailyActuals[period]?.[dep] ?? {},
-            sumBlock(block[dep]).result,
-          ),
-        0,
-      ),
-    0,
-  );
+    DEPS.forEach((dep) => {
+      const fallback = sumBlock(block[dep]);
+      const daily = departmentDailyActuals[period]?.[dep] ?? {};
+      const monthlyTarget = departmentTargets[period]?.[dep] ?? fallback.plan;
 
-  const branchTrackIndex = ratio({
-    plan: branchTargetThroughYesterday,
-    result: branchActual,
-  });
+      // Actual = آخر محقق تراكمي تم إدخاله للأيام
+      const latestVal = latestDailyValue(daily);
+      const actual = latestVal > 0 ? latestVal : (Object.keys(daily).length > 0 ? latestVal : fallback.result);
+
+      // Track = مستهدف حتى الأمس
+      const track = calculateTrackTarget(monthlyTarget, period);
+
+      // Daily Target = مستهدف يومي
+      const dailyTarget = calculateDailyTarget(monthlyTarget, period);
+
+      result[dep] = {
+        target: monthlyTarget,
+        actual,
+        track,
+        dailyTarget,
+      };
+    });
+
+    return result;
+  }, [block, period, departmentDailyActuals, departmentTargets]);
+
+  // حساب القيم لكل KPI
+  const kpiData = useMemo(() => {
+    const result: Record<
+      Kpi,
+      {
+        target: number;
+        actual: number;
+        track: number;
+        dailyTarget: number;
+        achievementRatio: number;
+      }
+    > = {} as any;
+
+    const totalDepsTarget = DEPS.reduce((sum, dep) => sum + (deptData[dep]?.target || 0), 0);
+    const totalDepsActual = DEPS.reduce((sum, dep) => sum + (deptData[dep]?.actual || 0), 0);
+
+    KPIS.forEach((kpi) => {
+      const daily = branchDailyActuals[period]?.[kpi] ?? {};
+      const latestVal = latestDailyValue(daily);
+      const enteredTarget = branchKpiTargets[period]?.[kpi] ?? branchKpis[kpi]?.plan ?? 0;
+      const enteredActual = latestVal > 0 ? latestVal : (branchKpis[kpi]?.result ?? 0);
+
+      // If Gross wasn't entered separately, fallback to sum of all departments
+      const target = kpi === "Gross" && enteredTarget === 0 ? totalDepsTarget : enteredTarget;
+      const actual = kpi === "Gross" && enteredActual === 0 ? totalDepsActual : enteredActual;
+
+      const track = calculateTrackTarget(target, period);
+      const dailyTarget = calculateDailyTarget(target, period);
+
+      result[kpi] = {
+        target,
+        actual,
+        track,
+        dailyTarget,
+        achievementRatio: calculateRatio(track, actual),
+      };
+    });
+
+    return result;
+  }, [deptData, period, branchDailyActuals, branchKpiTargets, branchKpis]);
+
+  // حساب القيم لمجموعات الأقسام
+  const groupData = useMemo(() => {
+    const result: Record<
+      string,
+      {
+        target: number;
+        actual: number;
+        track: number;
+        achievementRatio: number;
+      }
+    > = {};
+
+    SALES_GROUPS.forEach((group) => {
+      let target = 0;
+      let actual = 0;
+
+      group.deps.forEach((dep) => {
+        const deptInfo = deptData[dep];
+        if (deptInfo) {
+          target += deptInfo.target;
+          actual += deptInfo.actual;
+        }
+      });
+
+      const track = calculateTrackTarget(target, period);
+      const achievementRatio = calculateRatio(track, actual);
+
+      result[group.id] = {
+        target,
+        actual,
+        track,
+        achievementRatio,
+      };
+    });
+
+    return result;
+  }, [deptData, period]);
+
+  // حساب إجمالي الفرع
+  const branchTotal = useMemo(() => {
+    let target = 0;
+    let actual = 0;
+
+    DEPS.forEach((dep) => {
+      const deptInfo = deptData[dep];
+      if (deptInfo) {
+        target += deptInfo.target;
+        actual += deptInfo.actual;
+      }
+    });
+
+    const track = calculateTrackTarget(target, period);
+    const achievementRatio = calculateRatio(track, actual);
+
+    return {
+      target,
+      actual,
+      track,
+      achievementRatio,
+    };
+  }, [deptData, period]);
+
+  const periodInfo = useMemo(() => {
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const [year, month] = period.split("-").map(Number);
+    return `${monthNames[month - 1]} ${year}`;
+  }, [period]);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-      <header className="flex flex-col gap-1">
-        <p className="text-xs font-semibold tracking-kicker text-primary uppercase">
-          Branch performance
-        </p>
-        <h1 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Fayoum 1 Branch
-        </h1>
-        <p className="max-w-xl text-pretty text-sm text-muted">
-          {meta.label}
-        </p>
-      </header>
-
-      <section className="grid gap-4 lg:grid-cols-12">
-        <div className="hairline print-surface rounded-2xl bg-card/80 p-5 lg:col-span-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-foreground">Branch Target</h2>
-            <StatusPill ratio={branchTrackIndex} />
-          </div>
-          <IndexRing value={branchTrackIndex} />
-          <dl className="mt-3 space-y-2">
-            <MicroStat label="Target" value={formatNumber(totals.plan)} />
-            <MicroStat label="Track" value={formatNumber(branchTargetThroughYesterday)} />
-            <MicroStat label="Actual" value={formatNumber(branchActual)} />
-            <MicroStat
-              label="Remaining"
-              value={formatNumber(Math.max(0, totals.plan - branchActual))}
-            />
-            <MicroStat
-              label="Daily Target"
-              value={formatNumber(Math.round(totals.plan / getDaysInMonth(period)))}
-            />
-          </dl>
+    <div className="flex flex-col gap-6 px-4 py-6 fade-in">
+      {/* Header */}
+      <div className="mb-2">
+        <h1 className="text-xl font-bold text-foreground uppercase tracking-wider">Branch Performance</h1>
+        <div className="mt-1 flex items-center gap-2">
+          <span className="text-base font-semibold text-foreground">Fayoum 1 Branch</span>
+          <span className="text-sm text-subtle">{periodInfo}</span>
         </div>
+      </div>
 
-        <div className="hairline print-surface rounded-2xl bg-card/80 lg:col-span-8">
-          <div className="px-4 py-4 sm:px-5">
-            <h2 className="text-sm font-medium text-foreground">Main KPI performance</h2>
-            <p className="text-xs text-subtle">Actual versus the track through yesterday</p>
-          </div>
-          
-          <div className="w-full overflow-hidden">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-y border-border text-[10px] tracking-tight text-subtle uppercase sm:text-xs">
-                  <th className="px-2 py-2.5 font-medium sm:px-4">KPI</th>
-                  <th className="border-l border-border px-1.5 py-2.5 font-medium sm:px-3">Track</th>
-                  <th className="border-l border-border px-1.5 py-2.5 font-medium sm:px-3">Actual</th>
-                  <th className="border-l border-border px-1 py-2.5 font-medium sm:px-3">%</th>
-                  <th className="border-l border-border px-1.5 py-2.5 font-medium sm:px-4">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {SALES_GROUPS.map((group) => {
-                  const groupTotals = group.deps.reduce(
-                    (total, dep) => {
-                      const fallback = sumBlock(block[dep]);
-                      const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                      const target = departmentTargets[period]?.[dep] ?? fallback.plan;
-                      return {
-                        target: total.target + target,
-                        actual:
-                          total.actual +
-                          departmentMonthActual(daily, fallback.result),
-                      };
-                    },
-                    { target: 0, actual: 0 },
-                  );
-                  const groupTrack = Math.round(
-                    (groupTotals.target / getDaysInMonth(period)) * trackDay,
-                  );
-                  const groupRatio = ratio({
-                    plan: groupTrack,
-                    result: groupTotals.actual,
-                  });
-                  return (
-                    <tr key={group.id} className="border-b border-border bg-card-2/35">
-                      <td className="px-2 py-2 text-xs font-semibold text-foreground sm:px-4 sm:text-sm">
-                        {group.title}
-                      </td>
-                      <td className="border-l border-border px-1.5 py-2 font-mono text-[11px] font-semibold tabular-nums text-muted sm:px-3 sm:text-sm">
-                        {formatNumber(groupTrack)}
-                      </td>
-                      <td className="border-l border-border px-1.5 py-2 font-mono text-[11px] font-semibold tabular-nums text-foreground sm:px-3 sm:text-sm">
-                        {formatNumber(groupTotals.actual)}
-                      </td>
-                      <td className="border-l border-border px-1 py-2">
-                        <span className="font-mono text-[10px] font-semibold tabular-nums text-muted sm:text-xs">
-                          {formatPct(groupRatio)}
-                        </span>
-                      </td>
-                      <td className="border-l border-border px-1.5 py-2 sm:px-4">
-                        <StatusPill ratio={groupRatio} />
-                      </td>
-                    </tr>
-                  );
-                })}
-                {KPIS.map((kpi) => {
-                  const entry = branchKpis[kpi];
-                  const daily = branchDailyActuals[period]?.[kpi] ?? {};
-                  const fixedTarget = FIXED_KPI_TARGETS[kpi];
-                  
-                  const target =
-                    kpi === "Gross" && totals.plan > 0
-                      ? totals.plan
-                      : (fixedTarget ?? entry.plan);
-                  
-                  const targetThroughYesterday =
-                    fixedTarget !== undefined
-                      ? fixedTarget
-                      : Math.round((target / getDaysInMonth(period)) * trackDay);
-
-                  const actual =
-                    kpi === "Gross"
-                      ? branchActual
-                      : kpi === "CR"
-                      ? latestDailyValue(daily)
-                      : (daily[today] ?? 0);
-
-                  const kpiRatio = ratio({
-                    plan: fixedTarget !== undefined ? target : targetThroughYesterday,
-                    result: actual,
-                  });
-
-                  return (
-                    <tr key={kpi} className="border-b border-border last:border-0">
-                      <td className="px-2 py-2 text-xs font-medium text-foreground sm:px-4 sm:text-sm">{kpi}</td>
-                      <td className="border-l border-border px-1.5 py-2 font-mono text-[11px] tabular-nums text-muted sm:px-3 sm:text-sm">
-                        {fixedTarget !== undefined ? "—" : formatNumber(targetThroughYesterday)}
-                      </td>
-                      <td className="border-l border-border px-1.5 py-2 font-mono text-[11px] tabular-nums text-foreground sm:px-3 sm:text-sm">
-                        {formatNumber(actual)}
-                      </td>
-                      <td className="border-l border-border px-1 py-2">
-                        <span className="font-mono text-[10px] tabular-nums text-muted sm:text-xs">{formatPct(kpiRatio)}</span>
-                      </td>
-                      <td className="border-l border-border px-1.5 py-2 sm:px-4">
-                        <StatusPill ratio={kpiRatio} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {SALES_GROUPS.map((group) => {
-          const entry = group.deps.reduce(
-            (total, dep) => {
-              const part = sumBlock(block[dep]);
-              const daily = departmentDailyActuals[period]?.[dep] ?? {};
-              return {
-                plan:
-                  total.plan +
-                  (departmentTargets[period]?.[dep] ?? part.plan),
-                result: total.result + departmentMonthActual(daily, part.result),
-              };
-            },
-            { plan: 0, result: 0 },
-          );
-          const r = ratio(entry);
-          return (
-            <button
-              key={group.id}
-              type="button"
-              onClick={() => setView(DEP_VIEW[group.deps[0]])}
-              className="hairline pressable print-surface rounded-2xl bg-card/80 p-4 text-left"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-foreground">
-                    {group.title}
-                  </div>
-                  <div className="mt-0.5 text-xs text-subtle">
-                    {group.deps.join(" · ")}
+      {/* Branch Target Section */}
+      <section className="rounded-2xl bg-card/90 p-6">
+        <h2 className="mb-4 text-base font-semibold text-foreground">Branch Target</h2>
+        <div className="flex items-center gap-6">
+          {/* Circular Progress */}
+          <div className="flex flex-col items-center">
+            <div className="relative mx-auto grid size-36 place-items-center">
+              <svg viewBox="0 0 128 128" className="size-full -rotate-90">
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="54"
+                  fill="none"
+                  stroke="var(--color-card-3, #1e293b)"
+                  strokeWidth="10"
+                />
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="54"
+                  fill="none"
+                  stroke={
+                    branchTotal.achievementRatio >= 1
+                      ? "#10b981"
+                      : branchTotal.achievementRatio >= 0.8
+                        ? "#f59e0b"
+                        : "#ef4444"
+                  }
+                  strokeWidth="10"
+                  strokeDasharray={`${Math.min(339.292, 339.292 * Math.max(0, branchTotal.achievementRatio))} 339.292`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 grid place-items-center">
+                <div className="text-center">
+                  <div className="font-mono text-3xl font-bold tabular-nums text-foreground">
+                    {formatPct(branchTotal.achievementRatio)}
                   </div>
                 </div>
-                <StatusPill ratio={r} />
               </div>
-              <div className="mt-4 flex items-end justify-between">
-                <span className="font-mono text-2xl font-medium tabular-nums tracking-tight text-foreground">
-                  {formatPct(r)}
-                </span>
-                <span className="text-xs text-subtle">
-                  {formatNumber(entry.result)}
-                </span>
+            </div>
+            <div className="mt-2">
+              <StatusPill ratio={branchTotal.achievementRatio} />
+            </div>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="flex-1 grid grid-cols-5 gap-4">
+            <div className="text-center">
+              <div className="text-2xs uppercase text-subtle">Target</div>
+              <div className="font-mono text-sm font-semibold text-foreground">
+                {formatNumber(branchTotal.target)}
               </div>
-              <ProgressBar value={r} className="mt-3" />
-            </button>
-          );
-        })}
-      </section>
-
-      {role === "manager" && (
-      <section className="hairline print-surface overflow-hidden rounded-2xl bg-card/80">
-        <div className="flex flex-col gap-1 px-5 py-4">
-          <h2 className="text-sm font-medium text-foreground">Main KPIs</h2>
-          <p className="text-xs text-subtle">
-            Enter the monthly target for each branch KPI here. Daily actuals are tracked separately in the manager view.
-          </p>
-        </div>
-        <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-2 lg:grid-cols-4">
-          {KPIS.map((kpi) => {
-            const entry = branchKpis[kpi];
-            const daily = branchDailyActuals[period]?.[kpi] ?? {};
-            const actual =
-              kpi === "Gross"
-                ? branchActual
-                : kpi === "CR"
-                ? latestDailyValue(daily)
-                : Object.values(daily).reduce((sum, value) => sum + value, 0);
-            const target =
-              kpi === "Gross" && totals.plan > 0 ? totals.plan : (FIXED_KPI_TARGETS[kpi] ?? entry.plan);
-            return (
-              <article key={kpi} className="rounded-xl bg-card-2/70 p-3">
-                <div className="mb-2 text-sm font-medium text-foreground">{kpi}</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <StatInput
-                    label="Monthly Target"
-                    value={target}
-                    onChange={(value) => setBranchValue(kpi, "plan", value)}
-                    disabled={kpi === "Gross" || FIXED_KPI_TARGETS[kpi] !== undefined}
-                  />
-                  <StatInput
-                    label="Today's Actual"
-                    value={daily[today] ?? 0}
-                    onChange={(value) => setBranchDailyActual(kpi, today, value)}
-                    disabled={false}
-                  />
-                </div>
-                <div className="mt-2 flex justify-between text-xs text-subtle">
-                  <span>Actual: <span className="font-mono text-foreground">{formatNumber(actual || entry.result)}</span></span>
-                  <span>{formatPct(ratio({ plan: target, result: actual || entry.result }))}</span>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-      )}
-
-      <section className="hairline print-surface overflow-hidden rounded-2xl bg-card/80">
-        <div className="flex items-center justify-between px-5 py-4">
-          <div>
-            <h2 className="text-sm font-medium text-foreground">Desk scorecard</h2>
-            <p className="text-xs text-subtle">Live from current period inputs</p>
+            </div>
+            <div className="text-center">
+              <div className="text-2xs uppercase text-subtle">Track</div>
+              <div className="font-mono text-sm font-semibold text-foreground">
+                {formatNumber(branchTotal.track)}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xs uppercase text-subtle">Actual</div>
+              <div className="font-mono text-sm font-semibold text-foreground">
+                {formatNumber(branchTotal.actual)}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xs uppercase text-subtle">Remaining</div>
+              <div className="font-mono text-sm font-semibold text-foreground">
+                {formatNumber(Math.max(0, branchTotal.target - branchTotal.actual))}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xs uppercase text-subtle">Daily Target</div>
+              <div className="font-mono text-sm font-semibold text-foreground">
+                {formatNumber(branchTotal.target / daysInMonth)}
+              </div>
+            </div>
           </div>
         </div>
+      </section>
+
+      {/* Main KPI Performance Table */}
+      <section className="rounded-2xl bg-card/90 p-6">
+        <h2 className="mb-4 text-base font-semibold text-foreground">Main KPI performance</h2>
+
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
+          <table className="w-full">
             <thead>
-              <tr className="border-y border-border text-xs tracking-wide text-subtle uppercase">
-                <th className="px-5 py-3 font-medium whitespace-nowrap">Desk</th>
-                <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Plan</th>
-                <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Result</th>
-                <th className="border-l border-border px-3 py-3 font-medium whitespace-nowrap">Index</th>
-                <th className="border-l border-border px-5 py-3 font-medium whitespace-nowrap">Status</th>
+              <tr className="border-b border-border">
+                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">KPI</th>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">Track</th>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">Actual</th>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">%</th>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">Status</th>
               </tr>
             </thead>
             <tbody>
-              {SALES_GROUPS.map((group) => {
-                const entry = group.deps.reduce(
-                  (total, dep) => {
-                    const part = sumBlock(block[dep]);
-                    const daily = departmentDailyActuals[period]?.[dep] ?? {};
-                    return {
-                      plan:
-                        total.plan +
-                        (departmentTargets[period]?.[dep] ?? part.plan),
-                      result: total.result + departmentMonthActual(daily, part.result),
-                    };
-                  },
-                  { plan: 0, result: 0 },
-                );
-                const r = ratio(entry);
+              {/* KPI Rows: Gross, Agency, Boxi, Mylo, CR, GK */}
+              {KPIS.map((kpi) => {
+                const data = kpiData[kpi];
                 return (
-                  <tr key={group.id} className="border-b border-border last:border-0">
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => setView(DEP_VIEW[group.deps[0]])}
-                        className="font-medium text-foreground hover:text-primary"
-                      >
-                        {group.title}
-                      </button>
+                  <tr key={kpi} className="border-b border-border">
+                    <td className="px-4 py-3 text-center text-sm font-medium text-foreground">
+                      {kpi === "BOXI" ? "Boxi" : kpi}
                     </td>
-                    <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-muted whitespace-nowrap">
-                      {formatNumber(entry.plan)}
+                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                      {formatNumber(data.track)}
                     </td>
-                    <td className="border-l border-border px-3 py-3.5 font-mono text-sm tabular-nums text-foreground whitespace-nowrap">
-                      {formatNumber(entry.result)}
+                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                      {formatNumber(data.actual)}
                     </td>
-                    <td className="border-l border-border px-3 py-3.5 whitespace-nowrap">
-                      <div className="flex min-w-36 items-center gap-2">
-                        <ProgressBar value={r} className="flex-1" />
-                        <span className="w-10 font-mono text-xs tabular-nums text-muted">
-                          {formatPct(r)}
-                        </span>
-                      </div>
+                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                      {formatPct(data.achievementRatio)}
                     </td>
-                    <td className="border-l border-border px-5 py-3.5 whitespace-nowrap">
-                      <StatusPill ratio={r} />
+                    <td className="px-4 py-3 text-center">
+                      <StatusPill ratio={data.achievementRatio} />
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {/* Group Rows: Mobile, MDA-SDA, TV-AC */}
+              {SALES_GROUPS.map((group) => {
+                const data = groupData[group.id];
+                return (
+                  <tr key={group.id} className="border-b border-border">
+                    <td className="px-4 py-3 text-center text-sm font-medium text-foreground">{group.title}</td>
+                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                      {formatNumber(data.track)}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                      {formatNumber(data.actual)}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                      {formatPct(data.achievementRatio)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <StatusPill ratio={data.achievementRatio} />
                     </td>
                   </tr>
                 );
@@ -394,19 +347,36 @@ export function Overview() {
           </table>
         </div>
       </section>
+
+      {/* Bottom Cards */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {SALES_GROUPS.map((group) => {
+          const data = groupData[group.id];
+          const status = statusOf(data.achievementRatio);
+          return (
+            <div key={group.id} className="rounded-2xl bg-card/90 p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-foreground">{group.title}</h3>
+                <StatusPill ratio={data.achievementRatio} />
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-foreground">
+                  {formatPct(data.achievementRatio)}
+                </div>
+                <div className="mt-2 text-xs text-subtle">
+                  {group.deps.join(" · ")}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </section>
     </div>
   );
 }
 
-function MicroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card-2/80 px-3 py-2.5">
-      <dt className="text-2xs tracking-wide text-subtle uppercase">
-        {label}
-      </dt>
-      <dd className="font-mono text-sm font-semibold tabular-nums text-foreground">
-        {value}
-      </dd>
-    </div>
-  );
+export function Overview(props: any) {
+  return <OverviewView {...props} />;
 }
+
+export default OverviewView;
