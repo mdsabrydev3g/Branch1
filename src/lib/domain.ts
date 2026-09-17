@@ -62,8 +62,8 @@ export const SALES_GROUPS = [
     title: "Mobile",
     deps: ["IT Laptop", "IT Other", "Telecom Mobile", "Telecom ACC"] as Dep[],
   },
-  { id: "mda-sda", title: "MDA + SDA", deps: ["MDA", "SDA"] as Dep[] },
-  { id: "tv-ac", title: "TV + AC", deps: ["TV", "AC"] as Dep[] },
+  { id: "mda-sda", title: "MDA-SDA", deps: ["MDA", "SDA"] as Dep[] },
+  { id: "tv-ac", title: "TV-AC", deps: ["TV", "AC"] as Dep[] },
 ] as const;
 
 export const DEP_OWNERS: Record<

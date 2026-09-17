@@ -25,8 +25,8 @@ const NAV: {
   icon: typeof LayoutGrid;
 }[] = [
   { id: "overview", label: "Overview", short: "Home", icon: LayoutGrid },
-  { id: "tv", label: "TV — AC", short: "TV·AC", icon: Tv },
-  { id: "mda", label: "MDA - SDA", short: "MDA·SDA", icon: Layers },
+  { id: "tv", label: "TV-AC", short: "TV·AC", icon: Tv },
+  { id: "mda", label: "MDA-SDA", short: "MDA·SDA", icon: Layers },
   { id: "mobile", label: "Mobile", short: "Mobile", icon: Smartphone },
   { id: "daily", label: "Daily Editor", short: "Daily", icon: Edit },
   { id: "reports", label: "Reports", short: "Report", icon: FileBarChart },
@@ -68,10 +68,10 @@ export function Shell() {
         <main className="flex-1 px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-10">
           {view === "overview" && <Overview />}
           {view === "tv" && (
-            <DepartmentGroupView title="TV + AC" deps={["TV", "AC"]} />
+            <DepartmentGroupView title="TV-AC" deps={["TV", "AC"]} />
           )}
           {view === "mda" && (
-            <DepartmentGroupView title="MDA + SDA" deps={["MDA", "SDA"]} />
+            <DepartmentGroupView title="MDA-SDA" deps={["MDA", "SDA"]} />
           )}
           {view === "mobile" && (
             <DepartmentGroupView
