@@ -1,10 +1,9 @@
 export const KPIS = [
   "Gross",
-  "Pure",
   "Agency",
   "BOXI",
-  "CR",
   "Mylo",
+  "CR",
   "GK",
 ] as const;
 
@@ -37,7 +36,7 @@ export const PERIODS = [
 
 export type PeriodId = (typeof PERIODS)[number]["id"];
 
-export type ViewId = "overview" | "tv" | "mda" | "mobile" | "reports";
+export type ViewId = "overview" | "tv" | "mda" | "mobile" | "daily" | "reports";
 
 export type Entry = { plan: number; result: number };
 export type DeptBlock = Record<Kpi, Entry>;
@@ -55,15 +54,16 @@ export type DepartmentDailyActuals = Partial<
   Record<PeriodId, Partial<Record<Dep, Record<string, number>>>>
 >;
 export type DepartmentTargets = Partial<Record<PeriodId, Partial<Record<Dep, number>>>>;
+export type BranchKpiTargets = Partial<Record<PeriodId, Partial<Record<Kpi, number>>>>;
 
 export const SALES_GROUPS = [
-  { id: "tv-ac", title: "TV-AC", deps: ["TV", "AC"] as Dep[] },
-  { id: "mda-sda", title: "MDA-SDA", deps: ["MDA", "SDA"] as Dep[] },
   {
     id: "mobile",
     title: "Mobile",
     deps: ["IT Laptop", "IT Other", "Telecom Mobile", "Telecom ACC"] as Dep[],
   },
+  { id: "mda-sda", title: "MDA + SDA", deps: ["MDA", "SDA"] as Dep[] },
+  { id: "tv-ac", title: "TV + AC", deps: ["TV", "AC"] as Dep[] },
 ] as const;
 
 export const DEP_OWNERS: Record<
@@ -92,7 +92,7 @@ export const DEP_OWNERS: Record<
   "Telecom ACC": [],
 };
 
-export const LEAD_KPIS: Kpi[] = ["Gross", "Pure"];
+export const LEAD_KPIS: Kpi[] = ["Gross"];
 
 export const REST_KPI_ROWS: Kpi[][] = [
   ["Agency", "BOXI"],
@@ -103,21 +103,7 @@ export const REST_KPI_ROWS: Kpi[][] = [
 // Backwards-compatible name: some components import KPI_ROWS
 export const KPI_ROWS = REST_KPI_ROWS;
 
-const LEGACY_KPI_KEYS: Record<string, Kpi> = { "Tech Care": "BOXI" };
-
-export function migrateKpiKeys<T>(record: Record<string, T>): Record<string, T> {
-  let out = record;
-  for (const [legacy, current] of Object.entries(LEGACY_KPI_KEYS)) {
-    if (legacy in out && !(current in out)) {
-      out = { ...out };
-      out[current] = out[legacy];
-      delete out[legacy];
-    }
-  }
-  return out;
-}
-
-export const VIEW_DEP: Record<Exclude<ViewId, "overview" | "reports">, Dep> = {
+export const VIEW_DEP: Record<Exclude<ViewId, "overview" | "reports" | "daily">, Dep> = {
   tv: "TV",
   mda: "MDA",
   mobile: "IT Laptop",
@@ -182,7 +168,6 @@ export const DEP_SHORT: Record<Dep, string> = {
 
 export const KPI_HINT: Record<Kpi, string> = {
   Gross: "Gross movement",
-  Pure: "Pure contribution",
   Agency: "Agency deals",
   BOXI: "BOXI attachments",
   CR: "In-branch invoice conversion rate",
@@ -193,11 +178,10 @@ export const KPI_HINT: Record<Kpi, string> = {
 function seedDept(base: number): DeptBlock {
   return {
     Gross: { plan: base, result: Math.round(base * 0.92) },
-    Pure: { plan: Math.round(base * 0.4), result: Math.round(base * 0.36) },
     Agency: { plan: 12, result: 9 },
     BOXI: { plan: 120, result: 104 },
-    CR: { plan: 100, result: 88 },
     Mylo: { plan: 48, result: 40 },
+    CR: { plan: 100, result: 88 },
     GK: { plan: 14, result: 11 },
   };
 }
@@ -259,11 +243,11 @@ export function emptyDept(): DeptBlock {
   return block;
 }
 
-export function sumBlock(block: Partial<DeptBlock> | undefined): Entry {
+export function sumBlock(block: DeptBlock): Entry {
   return KPIS.reduce(
     (acc, kpi) => ({
-      plan: acc.plan + (block?.[kpi]?.plan ?? 0),
-      result: acc.result + (block?.[kpi]?.result ?? 0),
+      plan: acc.plan + block[kpi].plan,
+      result: acc.result + block[kpi].result,
     }),
     { plan: 0, result: 0 },
   );
@@ -313,82 +297,82 @@ export function getDaysInMonth(period: PeriodId): number {
   return new Date(year, month, 0).getDate();
 }
 
-// Local-time YYYY-MM-DD (UTC would roll back a day for Egypt mornings).
-export function todayISO(date: Date = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+export function localDateString(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function getTrackDay(period: PeriodId, today = localDateString()): number {
+  const currentPeriod = today.slice(0, 7);
+  if (period < currentPeriod) return getDaysInMonth(period);
+  if (period > currentPeriod) return 0;
+  return Math.max(0, Number(today.slice(-2)) - 1);
+}
+
+export function showSecondHalf(period: PeriodId, today = localDateString()): boolean {
+  const currentPeriod = today.slice(0, 7);
+  if (period < currentPeriod) return true;
+  if (period > currentPeriod) return false;
+  return Number(today.slice(-2)) >= 16;
+}
+
+export function latestDailyValue(daily: Record<string, number> | undefined): number {
+  if (!daily) return 0;
+  const dates = Object.keys(daily).sort();
+  if (!dates.length) return 0;
+  return Number(daily[dates[dates.length - 1]]) || 0;
+}
+
+export function latestDailyValueUpToDay(
+  daily: Record<string, number> | undefined,
+  maxDay: number,
+): number {
+  if (!daily) return 0;
+  const dates = Object.keys(daily)
+    .filter((date) => Number(date.slice(-2)) <= maxDay)
+    .sort();
+  if (!dates.length) return 0;
+  return Number(daily[dates[dates.length - 1]]) || 0;
+}
+
+export function monthActualFromDaily(
+  daily: Record<string, number> | undefined,
+  fallback = 0,
+): number {
+  if (daily && Object.keys(daily).length > 0) return latestDailyValue(daily);
+  return fallback;
+}
+
+export function firstHalfActualFromDaily(
+  daily: Record<string, number> | undefined,
+): number {
+  return latestDailyValueUpToDay(daily, 15);
+}
+
+export function secondHalfActualFromDaily(
+  daily: Record<string, number> | undefined,
+): number {
+  const monthActual = latestDailyValue(daily);
+  const firstHalf = firstHalfActualFromDaily(daily);
+  const hasSecondHalf = Object.keys(daily ?? {}).some(
+    (date) => Number(date.slice(-2)) > 15,
+  );
+  if (!hasSecondHalf) return 0;
+  return Math.max(0, monthActual - firstHalf);
 }
 
 export function calculateDailyTarget(monthlyTarget: number, period: PeriodId): number {
   return monthlyTarget / getDaysInMonth(period);
 }
 
-// Daily department entries are cumulative month-to-date snapshots:
-// the real actual is the value of the most recent entry, never the sum.
-export function latestDailyValue(
-  daily: Record<string, number>,
-  upToDay?: number,
+export function calculateTrackTarget(
+  monthlyTarget: number,
+  period: PeriodId,
+  today = localDateString(),
 ): number {
-  let bestDate = "";
-  let best = 0;
-  for (const [date, value] of Object.entries(daily)) {
-    if (upToDay !== undefined && Number(date.slice(-2)) > upToDay) continue;
-    if (date > bestDate) {
-      bestDate = date;
-      best = value;
-    }
-  }
-  return best;
-}
-
-export function cumulativeThroughDate(
-  daily: Record<string, number>,
-  beforeDate: string,
-): number {
-  let bestDate = "";
-  let best = 0;
-  for (const [date, value] of Object.entries(daily)) {
-    if (date >= beforeDate) continue;
-    if (date > bestDate) {
-      bestDate = date;
-      best = value;
-    }
-  }
-  return best;
-}
-
-export function departmentMonthActual(
-  daily: Record<string, number>,
-  fallback: number,
-): number {
-  return Object.keys(daily).length > 0 ? latestDailyValue(daily) : fallback;
-}
-
-export function departmentFirstHalfActual(daily: Record<string, number>): number {
-  return latestDailyValue(daily, 15);
-}
-
-export function departmentSecondHalfActual(daily: Record<string, number>): number {
-  if (Object.keys(daily).length === 0) return 0;
-  const latest = latestDailyValue(daily);
-  const firstHalf = departmentFirstHalfActual(daily);
-  return Math.max(0, latest - firstHalf);
-}
-
-export function getTrackDay(period: PeriodId | string, today: string): number {
-  const currentPeriod = today.slice(0, 7);
-  if (period < currentPeriod) {
-    const [year, month] = period.split("-").map(Number);
-    return new Date(year, month, 0).getDate();
-  }
-  if (period > currentPeriod) return 0;
-  return Math.max(0, Number(today.slice(-2)) - 1);
-}
-
-export function isSecondHalfVisible(period: PeriodId | string, today: string): boolean {
-  const currentPeriod = today.slice(0, 7);
-  if (period !== currentPeriod) return period < currentPeriod;
-  return Number(today.slice(-2)) >= 16;
+  return calculateDailyTarget(monthlyTarget, period) * getTrackDay(period, today);
 }
 
 export function calculateFirstHalfTarget(monthlyTarget: number, period: PeriodId): number {

@@ -8,19 +8,14 @@ import {
   calculateFirstHalfTarget,
   calculateRemaining,
   calculateSecondHalfTarget,
-  departmentFirstHalfActual,
-  departmentMonthActual,
-  departmentSecondHalfActual,
   formatNumber,
   formatPct,
-  getTrackDay,
-  isSecondHalfVisible,
-  KPIS,
   latestDailyValue,
+  KPIS,
   periodMeta,
   ratio,
   sumBlock,
-  todayISO,
+  sumPeriod,
   type PeriodBlock,
   type DepartmentDailyActuals,
   type DepartmentTargets,
@@ -40,31 +35,19 @@ export function ReportsView() {
   const branchKpis = usePerfStore((s) => s.branchKpis);
   const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const meta = periodMeta(period);
-  const today = todayISO();
   const totals = DEPS.reduce(
     (total, dep) => {
       const fallback = sumBlock(block[dep]);
       const daily = departmentDailyActuals[period]?.[dep] ?? {};
+      const latestVal = latestDailyValue(daily);
+      const depActual = latestVal > 0 ? latestVal : (Object.keys(daily).length > 0 ? latestVal : fallback.result);
       return {
         plan: total.plan + (departmentTargets[period]?.[dep] ?? fallback.plan),
-        result: total.result + departmentMonthActual(daily, fallback.result),
+        result: total.result + depActual,
       };
     },
     { plan: 0, result: 0 },
   );
-  const firstHalfActual = DEPS.reduce(
-    (total, dep) =>
-      total +
-      departmentFirstHalfActual(departmentDailyActuals[period]?.[dep] ?? {}),
-    0,
-  );
-  const secondHalfActual = DEPS.reduce(
-    (total, dep) =>
-      total +
-      departmentSecondHalfActual(departmentDailyActuals[period]?.[dep] ?? {}),
-    0,
-  );
-  const showSecondHalf = isSecondHalfVisible(period, today);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
@@ -124,15 +107,13 @@ export function ReportsView() {
           <HalfSummary
             label="First half"
             target={calculateFirstHalfTarget(totals.plan, period)}
-            actual={firstHalfActual}
+            actual={totals.result}
           />
-          {showSecondHalf && (
-            <HalfSummary
-              label="Second half"
-              target={calculateSecondHalfTarget(totals.plan, period)}
-              actual={secondHalfActual}
-            />
-          )}
+          <HalfSummary
+            label="Second half"
+            target={calculateSecondHalfTarget(totals.plan, period)}
+            actual={0}
+          />
           <HalfSummary
             label="80% milestone"
             target={calculate80PercentTarget(totals.plan)}
@@ -151,8 +132,9 @@ export function ReportsView() {
         const desk = sumBlock(block[dep]);
         const daily = departmentDailyActuals[period]?.[dep] ?? {};
         const deskTarget = departmentTargets[period]?.[dep] ?? desk.plan;
-        const deskActual = departmentMonthActual(daily, desk.result);
-        const track = Math.round(calculateDailyTarget(deskTarget, period) * getTrackDay(period, today));
+        const latestVal = latestDailyValue(daily);
+        const deskActual = latestVal > 0 ? latestVal : (Object.keys(daily).length > 0 ? latestVal : desk.result);
+        const track = calculateDailyTarget(deskTarget, period) * getTrackDay(period);
         const trackRatio = ratio({ plan: track, result: deskActual });
         return (
           <section
@@ -201,11 +183,10 @@ export function ReportsView() {
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {KPIS.map((kpi) => {
             const entry = branchKpis[kpi];
-            const daily = branchDailyActuals[period]?.[kpi] ?? {};
-            const actual =
-              kpi === "CR"
-                ? latestDailyValue(daily)
-                : Object.values(daily).reduce((sum, value) => sum + value, 0);
+            const actual = Object.values(branchDailyActuals[period]?.[kpi] ?? {}).reduce(
+              (sum, value) => sum + value,
+              0,
+            );
             const r = ratio({ plan: entry.plan, result: actual });
             return (
               <article key={kpi} className="rounded-xl border border-border bg-card-2/70 p-3">
@@ -276,6 +257,17 @@ function Summary({ label, value }: { label: string; value: string }) {
   );
 }
 
+function getTrackDay(period: string): number {
+  const today = new Date().toISOString().slice(0, 10);
+  const currentPeriod = today.slice(0, 7);
+  if (period < currentPeriod) {
+    const [year, month] = period.split("-").map(Number);
+    return new Date(year, month, 0).getDate();
+  }
+  if (period > currentPeriod) return 0;
+  return Math.max(0, Number(today.slice(-2)) - 1);
+}
+
 function downloadCsv(
   label: string,
   block: PeriodBlock,
@@ -290,17 +282,15 @@ function downloadCsv(
     const fallback = sumBlock(block[dep]);
     const target = departmentTargets[period]?.[dep] ?? fallback.plan;
     const daily = departmentDailyActuals[period]?.[dep] ?? {};
-    const actual = departmentMonthActual(daily, fallback.result);
+    const latestVal = latestDailyValue(daily);
+    const actual = latestVal > 0 ? latestVal : (Object.keys(daily).length > 0 ? latestVal : fallback.result);
     const departmentRatio = ratio({ plan: target, result: actual });
     lines.push([dep, "Department total", String(target), String(actual), formatPct(departmentRatio), statusText(departmentRatio)]);
   }
   for (const kpi of KPIS) {
     const target = branchKpis[kpi]?.plan ?? 0;
-    const daily = branchDailyActuals[period]?.[kpi] ?? {};
-    const actual =
-      kpi === "CR"
-        ? latestDailyValue(daily)
-        : Object.values(daily).reduce((sum, value) => sum + value, 0);
+    const latestKpiVal = latestDailyValue(branchDailyActuals[period]?.[kpi]);
+    const actual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
     const kpiRatio = ratio({ plan: target, result: actual });
     lines.push(["Branch KPIs", kpi, String(target), String(actual), formatPct(kpiRatio), statusText(kpiRatio)]);
   }

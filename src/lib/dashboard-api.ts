@@ -6,6 +6,7 @@ import type {
   DailyActuals,
   DepartmentDailyActuals,
   DepartmentTargets,
+  BranchKpiTargets,
   PerformanceData,
   PeriodId,
 } from "@/lib/domain";
@@ -19,6 +20,7 @@ export type SharedDashboardState = {
   branchDailyActuals: BranchDailyActuals;
   departmentDailyActuals: DepartmentDailyActuals;
   departmentTargets: DepartmentTargets;
+  branchKpiTargets?: BranchKpiTargets;
 };
 
 const stateSchema = z.object({
@@ -29,6 +31,7 @@ const stateSchema = z.object({
   branchDailyActuals: z.record(z.string(), z.unknown()),
   departmentDailyActuals: z.record(z.string(), z.unknown()),
   departmentTargets: z.record(z.string(), z.unknown()),
+  branchKpiTargets: z.record(z.string(), z.unknown()).optional(),
 });
 
 function defaultState(): SharedDashboardState {
@@ -40,6 +43,7 @@ function defaultState(): SharedDashboardState {
     branchDailyActuals: {},
     departmentDailyActuals: {},
     departmentTargets: {},
+    branchKpiTargets: {},
   };
 }
 
