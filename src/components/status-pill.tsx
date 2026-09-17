@@ -16,15 +16,18 @@ const TONE_GLOW: Record<StatusTone, string> = {
 export function StatusPill({
   ratio,
   report = false,
+  compact = false,
 }: {
   ratio: number;
   report?: boolean;
+  compact?: boolean;
 }) {
   const s = statusOf(ratio);
   return (
     <span
       className={cn(
-        "inline-flex h-7 items-center rounded-full border px-3 text-xs font-semibold tracking-wide transition-all duration-300",
+        "inline-flex items-center rounded-full border font-semibold tracking-wide transition-all duration-300",
+        compact ? "h-5 whitespace-nowrap px-1.5 text-[10px]" : "h-7 px-3 text-xs",
         TONE[s.tone],
         TONE_GLOW[s.tone],
       )}

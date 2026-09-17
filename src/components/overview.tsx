@@ -7,7 +7,6 @@ import {
   sumBlock,
   calculateTrackTarget,
   calculateDailyTarget,
-  statusOf,
   latestDailyValue,
   KPIS,
   SALES_GROUPS,
@@ -143,7 +142,8 @@ export function OverviewView() {
       });
 
       const track = calculateTrackTarget(target, period);
-      const achievementRatio = calculateRatio(track, actual);
+      // نسبة القسم = المحقق ÷ مستهدف الشهر الكلي (وليس مستهدف الـ 15 يوم)
+      const achievementRatio = calculateRatio(target, actual);
 
       result[group.id] = {
         target,
@@ -170,6 +170,7 @@ export function OverviewView() {
     });
 
     const track = calculateTrackTarget(target, period);
+    // دائرة الفرع الكلي = المحقق ÷ التراك (مستهدف حتى الأمس)
     const achievementRatio = calculateRatio(track, actual);
 
     return {
@@ -201,9 +202,9 @@ export function OverviewView() {
       </div>
 
       {/* Branch Target Section */}
-      <section className="rounded-2xl bg-card/90 p-6">
+      <section className="rounded-2xl bg-card/90 p-4 sm:p-6">
         <h2 className="mb-4 text-base font-semibold text-foreground">Branch Target</h2>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col items-center gap-6">
           {/* Circular Progress */}
           <div className="flex flex-col items-center">
             <div className="relative mx-auto grid size-36 place-items-center">
@@ -246,55 +247,29 @@ export function OverviewView() {
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="flex-1 grid grid-cols-5 gap-4">
-            <div className="text-center">
-              <div className="text-2xs uppercase text-subtle">Target</div>
-              <div className="font-mono text-sm font-semibold text-foreground">
-                {formatNumber(branchTotal.target)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xs uppercase text-subtle">Track</div>
-              <div className="font-mono text-sm font-semibold text-foreground">
-                {formatNumber(branchTotal.track)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xs uppercase text-subtle">Actual</div>
-              <div className="font-mono text-sm font-semibold text-foreground">
-                {formatNumber(branchTotal.actual)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xs uppercase text-subtle">Remaining</div>
-              <div className="font-mono text-sm font-semibold text-foreground">
-                {formatNumber(Math.max(0, branchTotal.target - branchTotal.actual))}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xs uppercase text-subtle">Daily Target</div>
-              <div className="font-mono text-sm font-semibold text-foreground">
-                {formatNumber(branchTotal.target / daysInMonth)}
-              </div>
-            </div>
+          {/* Stats List — عمودي: كل كلمة بجانب رقمها */}
+          <div className="flex w-full max-w-sm flex-col gap-2">
+            <StatRow label="Target" value={formatNumber(branchTotal.target)} />
+            <StatRow label="Track" value={formatNumber(branchTotal.track)} />
+            <StatRow label="Actual" value={formatNumber(branchTotal.actual)} />
+            <StatRow label="Remaining" value={formatNumber(Math.max(0, branchTotal.target - branchTotal.actual))} />
+            <StatRow label="Daily Target" value={formatNumber(branchTotal.target / daysInMonth)} />
           </div>
         </div>
       </section>
 
       {/* Main KPI Performance Table */}
-      <section className="rounded-2xl bg-card/90 p-6">
+      <section className="rounded-2xl bg-card/90 p-3 sm:p-6">
         <h2 className="mb-4 text-base font-semibold text-foreground">Main KPI performance</h2>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <table className="w-full table-fixed">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">KPI</th>
-                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">Track</th>
-                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">Actual</th>
-                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">%</th>
-                <th className="px-4 py-2 text-center text-xs font-semibold text-foreground">Status</th>
+                <th className="w-[20%] px-0.5 py-2 text-center text-[10px] font-semibold text-foreground sm:px-4 sm:text-xs">KPI</th>
+                <th className="w-[27%] px-0.5 py-2 text-center text-[10px] font-semibold text-foreground sm:px-4 sm:text-xs">Track</th>
+                <th className="w-[27%] px-0.5 py-2 text-center text-[10px] font-semibold text-foreground sm:px-4 sm:text-xs">Actual</th>
+                <th className="w-[9%] px-0.5 py-2 text-center text-[10px] font-semibold text-foreground sm:px-4 sm:text-xs">%</th>
+                <th className="w-[17%] px-0.5 py-2 text-center text-[10px] font-semibold text-foreground sm:px-4 sm:text-xs">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -303,20 +278,20 @@ export function OverviewView() {
                 const data = kpiData[kpi];
                 return (
                   <tr key={kpi} className="border-b border-border">
-                    <td className="px-4 py-3 text-center text-sm font-medium text-foreground">
+                    <td className="whitespace-nowrap px-0.5 py-2.5 text-center text-[11px] font-medium text-foreground sm:px-4 sm:py-3 sm:text-sm">
                       {kpi === "BOXI" ? "Boxi" : kpi}
                     </td>
-                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                    <td className="whitespace-nowrap px-0.5 py-2.5 text-center font-mono text-[11px] tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-sm">
                       {formatNumber(data.track)}
                     </td>
-                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                    <td className="whitespace-nowrap px-0.5 py-2.5 text-center font-mono text-[11px] tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-sm">
                       {formatNumber(data.actual)}
                     </td>
-                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                    <td className="whitespace-nowrap px-0.5 py-2.5 text-center font-mono text-[11px] tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-sm">
                       {formatPct(data.achievementRatio)}
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <StatusPill ratio={data.achievementRatio} />
+                    <td className="px-0.5 py-2.5 text-center sm:px-4 sm:py-3">
+                      <StatusPill ratio={data.achievementRatio} compact />
                     </td>
                   </tr>
                 );
@@ -327,34 +302,32 @@ export function OverviewView() {
                 const data = groupData[group.id];
                 return (
                   <tr key={group.id} className="border-b border-border">
-                    <td className="px-4 py-3 text-center text-sm font-medium text-foreground">{group.title}</td>
-                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                    <td className="whitespace-nowrap px-0.5 py-2.5 text-center text-[11px] font-medium text-foreground sm:px-4 sm:py-3 sm:text-sm">{group.title}</td>
+                    <td className="whitespace-nowrap px-0.5 py-2.5 text-center font-mono text-[11px] tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-sm">
                       {formatNumber(data.track)}
                     </td>
-                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                    <td className="whitespace-nowrap px-0.5 py-2.5 text-center font-mono text-[11px] tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-sm">
                       {formatNumber(data.actual)}
                     </td>
-                    <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                    <td className="whitespace-nowrap px-0.5 py-2.5 text-center font-mono text-[11px] tabular-nums text-foreground sm:px-4 sm:py-3 sm:text-sm">
                       {formatPct(data.achievementRatio)}
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <StatusPill ratio={data.achievementRatio} />
+                    <td className="px-0.5 py-2.5 text-center sm:px-4 sm:py-3">
+                      <StatusPill ratio={data.achievementRatio} compact />
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        </div>
       </section>
 
       {/* Bottom Cards */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {SALES_GROUPS.map((group) => {
           const data = groupData[group.id];
-          const status = statusOf(data.achievementRatio);
           return (
-            <div key={group.id} className="rounded-2xl bg-card/90 p-6">
+            <div key={group.id} className="rounded-2xl bg-card/90 p-4 sm:p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-base font-semibold text-foreground">{group.title}</h3>
                 <StatusPill ratio={data.achievementRatio} />
@@ -363,14 +336,20 @@ export function OverviewView() {
                 <div className="text-3xl font-bold text-foreground">
                   {formatPct(data.achievementRatio)}
                 </div>
-                <div className="mt-2 text-xs text-subtle">
-                  {group.deps.join(" · ")}
-                </div>
               </div>
             </div>
           );
         })}
       </section>
+    </div>
+  );
+}
+
+function StatRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-xl bg-card-2/50 px-4 py-2.5">
+      <span className="text-xs font-medium uppercase tracking-wide text-subtle">{label}</span>
+      <span className="font-mono text-sm font-semibold tabular-nums text-foreground">{value}</span>
     </div>
   );
 }

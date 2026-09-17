@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   formatNumber,
   formatPct,
@@ -8,7 +8,6 @@ import {
   DEPS,
   KPIS,
   DEP_COPY,
-  KPI_HINT,
   statusOf,
   type Kpi,
   type Dep,
@@ -60,11 +59,14 @@ export function DailyEditor() {
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
+  // حماية ما كتبه المستخدم من المسح التلقائي (تحديث البيانات كل 15 ثانية)
+  const dirtyRef = useRef(false);
+  const hydrated = usePerfStore((s) => s.hydrated);
+
   const daysInMonth = getDaysInMonth(period);
   const trackDay = getTrackDay(period, editingDate);
 
-  // Initialize drafts whenever period or date changes or store values load
-  useEffect(() => {
+  const initDrafts = useCallback(() => {
     const periodDepDaily = departmentDailyActuals[period] ?? {};
     const periodDepTargets = departmentTargets[period] ?? {};
     const periodKpiDaily = branchDailyActuals[period] ?? {};
@@ -102,6 +104,19 @@ export function DailyEditor() {
     branchKpis,
   ]);
 
+  // تغيير الشهر أو تاريخ الإدخال: إعادة تهيئة قسرية للخانات
+  useEffect(() => {
+    dirtyRef.current = false;
+    initDrafts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, editingDate]);
+
+  // وصول بيانات جديدة من السيرفر: لا نمسح تعديلات المستخدم غير المحفوظة
+  useEffect(() => {
+    if (dirtyRef.current) return;
+    initDrafts();
+  }, [initDrafts, hydrated]);
+
   const handleSaveAll = async () => {
     if (role !== "manager") return;
     setSaveStatus("saving");
@@ -110,8 +125,11 @@ export function DailyEditor() {
       const depActuals: Partial<Record<Dep, number>> = {};
       const depTargets: Partial<Record<Dep, number>> = {};
       DEPS.forEach((dep) => {
+        // الخانة الفارغة تعني "بدون تغيير" — لا نكتب صفراً فوق المحقق المحفوظ
         const actStr = depActualActualValue(dep);
-        depActuals[dep] = actStr ? parseFloat(actStr) : 0;
+        if (actStr.trim() !== "") {
+          depActuals[dep] = parseFloat(actStr) || 0;
+        }
         const tarStr = depTargetDrafts[dep];
         if (tarStr !== undefined && tarStr !== "") {
           depTargets[dep] = parseFloat(tarStr) || 0;
@@ -121,8 +139,11 @@ export function DailyEditor() {
       const kpiActuals: Partial<Record<Kpi, number>> = {};
       const kpiTargets: Partial<Record<Kpi, number>> = {};
       KPIS.forEach((kpi) => {
+        // الخانة الفارغة تعني "بدون تغيير" — لا نكتب صفراً فوق المحقق المحفوظ
         const actStr = kpiActualActualValue(kpi);
-        kpiActuals[kpi] = actStr ? parseFloat(actStr) : 0;
+        if (actStr.trim() !== "") {
+          kpiActuals[kpi] = parseFloat(actStr) || 0;
+        }
         const tarStr = kpiTargetDrafts[kpi];
         if (tarStr !== undefined && tarStr !== "") {
           kpiTargets[kpi] = parseFloat(tarStr) || 0;
@@ -138,6 +159,7 @@ export function DailyEditor() {
         kpiTargets,
       });
 
+      dirtyRef.current = false;
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch {
@@ -183,7 +205,7 @@ export function DailyEditor() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password (e.g. Fay1)"
+              placeholder="Password"
               className="h-11 w-full rounded-lg border border-border bg-navy px-3 text-foreground outline-none focus:border-primary"
             />
             {passwordError && (
@@ -272,7 +294,7 @@ export function DailyEditor() {
           )}
         >
           <Layers className="size-4" />
-          Departments / الأقسام ({DEPS.length})
+          Departments ({DEPS.length})
         </button>
         <button
           type="button"
@@ -285,7 +307,7 @@ export function DailyEditor() {
           )}
         >
           <BarChart3 className="size-4" />
-          Main KPIs / المؤشرات ({KPIS.length})
+          Main KPIs ({KPIS.length})
         </button>
       </div>
 
@@ -342,9 +364,10 @@ export function DailyEditor() {
                         <input
                           type="number"
                           value={depTargetDrafts[dep] ?? ""}
-                          onChange={(e) =>
-                            setDepTargetDrafts((prev) => ({ ...prev, [dep]: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            dirtyRef.current = true;
+                            setDepTargetDrafts((prev) => ({ ...prev, [dep]: e.target.value }));
+                          }}
                           placeholder="0"
                           className="h-9 w-28 rounded-lg border border-border bg-navy px-2.5 font-mono text-xs text-foreground outline-none focus:border-primary"
                         />
@@ -365,9 +388,10 @@ export function DailyEditor() {
                         <input
                           type="number"
                           value={depActualDrafts[dep] ?? ""}
-                          onChange={(e) =>
-                            setDepActualDrafts((prev) => ({ ...prev, [dep]: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            dirtyRef.current = true;
+                            setDepActualDrafts((prev) => ({ ...prev, [dep]: e.target.value }));
+                          }}
                           placeholder="0"
                           className="h-10 w-32 rounded-lg border-2 border-primary/50 bg-navy px-3 font-mono text-sm font-semibold text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         />
@@ -445,7 +469,6 @@ export function DailyEditor() {
                     <tr key={kpi} className="hover:bg-card-2/30 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">
                         <div className="font-semibold">{kpi}</div>
-                        <div className="text-2xs text-subtle">{KPI_HINT[kpi]}</div>
                       </td>
 
                       {/* Target Input */}
@@ -453,9 +476,10 @@ export function DailyEditor() {
                         <input
                           type="number"
                           value={kpiTargetDrafts[kpi] ?? ""}
-                          onChange={(e) =>
-                            setKpiTargetDrafts((prev) => ({ ...prev, [kpi]: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            dirtyRef.current = true;
+                            setKpiTargetDrafts((prev) => ({ ...prev, [kpi]: e.target.value }));
+                          }}
                           placeholder="0"
                           className="h-9 w-28 rounded-lg border border-border bg-navy px-2.5 font-mono text-xs text-foreground outline-none focus:border-primary"
                         />
@@ -471,9 +495,10 @@ export function DailyEditor() {
                         <input
                           type="number"
                           value={kpiActualDrafts[kpi] ?? ""}
-                          onChange={(e) =>
-                            setKpiActualDrafts((prev) => ({ ...prev, [kpi]: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            dirtyRef.current = true;
+                            setKpiActualDrafts((prev) => ({ ...prev, [kpi]: e.target.value }));
+                          }}
                           placeholder="0"
                           className="h-10 w-32 rounded-lg border-2 border-primary/50 bg-navy px-3 font-mono text-sm font-semibold text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         />

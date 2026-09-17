@@ -62,6 +62,16 @@ interface PerfState {
 
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+/**
+ * آخر لحظة حفظ محلي. التحديث الدوري (كل 15 ثانية) قد يعيد بيانات قديمة إذا
+ * كانت استجابة GET قد انطلقت قبل اكتمال الحفظ — فلا نطبق عليها فوق ما حفظه
+ * المستخدم للتو.
+ */
+let lastSaveAt = 0;
+function markSaved() {
+  lastSaveAt = Date.now();
+}
+
 function persistLocal(
   period: PeriodId,
   data: PerformanceData,
@@ -204,6 +214,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
   setRole: (r) => set({ role: r }),
   setView: (view) => set({ view }),
   setPeriod: (period) => {
+    markSaved();
     set({ period });
     persistLocal(
       period,
@@ -234,6 +245,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         },
       },
     };
+    markSaved();
     set({ data: next });
     persistLocal(
       period,
@@ -253,6 +265,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       ...get().branchKpis,
       [kpi]: { ...get().branchKpis[kpi], [field]: value },
     };
+    markSaved();
     set({ branchKpis });
     try {
       localStorage.setItem(`${STORAGE_KEY}:branch-kpis`, JSON.stringify(branchKpis));
@@ -288,6 +301,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         },
       },
     };
+    markSaved();
     set({ data: next, dailyActuals: nextDailyActuals });
     persistLocal(
       period,
@@ -320,6 +334,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         result: value,
       },
     };
+    markSaved();
     set({ branchDailyActuals: next, branchKpis: nextKpis });
     persistLocal(
       period,
@@ -349,6 +364,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         plan: value,
       },
     };
+    markSaved();
     set({ branchKpiTargets: nextTargets, branchKpis: nextKpis });
     persistLocal(
       period,
@@ -374,6 +390,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         },
       },
     };
+    markSaved();
     set({ departmentDailyActuals: next });
     persistLocal(
       period,
@@ -396,6 +413,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         [dep]: value,
       },
     };
+    markSaved();
     set({ departmentTargets: next });
     persistLocal(
       period,
@@ -488,6 +506,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       }
     });
 
+    markSaved();
     set({
       departmentDailyActuals: nextDepDaily,
       departmentTargets: nextDepTargets,
@@ -510,6 +529,8 @@ export const usePerfStore = create<PerfState>((set, get) => ({
   },
   hydrate: async (silent = false) => {
     if (!silent && get().hydrated) return;
+    // التحديث الدوري بعد حفظ حديث: قد تعيد استجابة قديمة وت مسح ما حفظه المستخدم
+    if (silent && Date.now() - lastSaveAt < 10_000) return;
     const currentRole = get().role;
     try {
       const shared = await loadDashboardState();
