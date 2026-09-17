@@ -1,17 +1,16 @@
 import { useMemo, type ReactNode } from "react";
 import {
   DEP_COPY,
+  DEP_SHORT,
   calculate85PercentTarget,
   calculate80PercentTarget,
   calculateDailyTarget,
   calculateFirstHalfTarget,
   calculateRemaining,
-  calculateSecondHalfTarget,
   calculateTrackTarget,
   firstHalfActualFromDaily,
   formatNumber,
   formatPct,
-  getDaysInMonth,
   getTrackDay,
   localDateString,
   monthActualFromDaily,
@@ -35,7 +34,7 @@ const SPLIT_BP = {
 
 type SplitBp = keyof typeof SPLIT_BP;
 
-function SplitPair({
+export function SplitPair({
   left,
   right,
   bp = "md",
@@ -93,19 +92,52 @@ function toneClass(tone: ReturnType<typeof statusOf>["tone"]) {
       : "text-danger";
 }
 
+/** Small progress ring: actual ÷ total target inside. */
+function MiniRing({ value }: { value: number }) {
+  const fill = Math.min(1, Math.max(0, value));
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  const dash = c * fill;
+  return (
+    <div className="relative grid size-16 shrink-0 place-items-center">
+      <svg viewBox="0 0 64 64" className="size-full -rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" stroke="var(--color-card-3)" strokeWidth="7" />
+        <circle
+          cx="32"
+          cy="32"
+          r={r}
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeWidth="7"
+          strokeDasharray={`${dash} ${c}`}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="absolute inset-0 grid place-items-center">
+        <span className="font-mono text-sm font-bold tabular-nums text-foreground">
+          {Math.round(value * 100)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function TrackCard({
   target,
   actual,
+  totalTarget,
   day,
   className,
 }: {
   target: number;
   actual: number;
+  totalTarget: number;
   day: number;
   className?: string;
 }) {
   const gap = actual - target;
   const r = ratio({ plan: target, result: actual });
+  const ringRatio = ratio({ plan: totalTarget, result: actual });
   const gapAccent = gap > 0 ? "text-success" : gap < 0 ? "text-danger" : "text-warning";
   return (
     <section
@@ -114,8 +146,9 @@ function TrackCard({
         className,
       )}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
+      <div className="mb-3 flex items-center gap-3">
+        <MiniRing value={ringRatio} />
+        <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold text-foreground">Track until yesterday</h2>
           <p className="text-xs text-subtle">Cumulative target through day {day}</p>
         </div>
@@ -190,7 +223,6 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
 
   const today = localDateString();
   const block = data[period] ?? {};
-  const daysInMonth = getDaysInMonth(period);
   const trackDay = getTrackDay(period, today);
   const visibleSecond = showSecondHalf(period, today);
 
@@ -217,20 +249,14 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
   const monthTarget = depStats.reduce((sum, d) => sum + d.target, 0);
   const totalMonthActual = depStats.reduce((sum, d) => sum + d.actual, 0);
   const firstHalfActual = depStats.reduce((sum, d) => sum + d.firstHalf, 0);
-  const secondHalfActual = Math.max(0, totalMonthActual - firstHalfActual);
 
   const trackTarget = Math.round(calculateTrackTarget(monthTarget, period, today));
   const dailyTarget = Math.round(calculateDailyTarget(monthTarget, period));
   const firstHalfTarget = Math.round(calculateFirstHalfTarget(monthTarget, period));
   const checkpoint80Target = Math.round(calculate80PercentTarget(firstHalfTarget));
-  const secondHalfTarget = Math.max(0, monthTarget - firstHalfTarget);
   const month85Target = Math.round(calculate85PercentTarget(monthTarget));
 
   const totalRatio = ratio({ plan: monthTarget, result: totalMonthActual });
-  const firstHalfRatio = ratio({ plan: firstHalfTarget, result: firstHalfActual });
-  const checkpointRatio = ratio({ plan: checkpoint80Target, result: firstHalfActual });
-  const secondHalfRatio = ratio({ plan: secondHalfTarget, result: secondHalfActual });
-  const month85Ratio = ratio({ plan: month85Target, result: totalMonthActual });
   const totalTone = toneClass(statusOf(totalRatio).tone);
 
   return (
@@ -285,11 +311,78 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
           </section>
         }
         right={
-          <TrackCard target={trackTarget} actual={totalMonthActual} day={trackDay} />
+          <TrackCard target={trackTarget} actual={totalMonthActual} totalTarget={monthTarget} day={trackDay} />
         }
       />
 
-      {/* Department sections */}
+      {/* Department sections: wide groups get one combined table,
+          small groups keep a card per department */}
+      {deps.length > 2 ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3 px-1">
+            <div className="min-w-0">
+              <h3 className="text-lg font-bold text-foreground">{title} breakdown</h3>
+              <p className="text-xs text-subtle">All sections combined in one table</p>
+            </div>
+            <StatusPill ratio={totalRatio} />
+          </div>
+          <SplitPair
+            bp="xl"
+            left={
+              <section className="hairline print-surface gradient-border h-full rounded-2xl bg-card/90 p-5 sm:p-6 card-hover">
+                <div className="overflow-hidden">
+                  <table className="w-full border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-border text-2xs uppercase tracking-wider text-subtle">
+                        <th className="px-2 py-2 font-semibold">Section</th>
+                        <th className="px-2 py-2 text-right font-semibold">Target</th>
+                        <th className="px-2 py-2 text-right font-semibold">Actual</th>
+                        <th className="px-2 py-2 text-right font-semibold">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {depStats.map((d) => {
+                        const r = ratio({ plan: d.target, result: d.actual });
+                        return (
+                          <tr key={d.depKey} className="border-b border-border/60 last:border-0">
+                            <td className="truncate px-2 py-2.5 text-xs font-semibold text-foreground sm:text-sm">
+                              {DEP_SHORT[d.depKey]}
+                            </td>
+                            <td className="px-2 py-2.5 text-right font-mono text-xs tabular-nums text-muted sm:text-sm">
+                              {formatNumber(d.target)}
+                            </td>
+                            <td className="px-2 py-2.5 text-right font-mono text-xs font-semibold tabular-nums text-foreground sm:text-sm">
+                              {formatNumber(d.actual)}
+                            </td>
+                            <td className="px-2 py-2.5 text-right font-mono text-xs font-semibold tabular-nums text-muted sm:text-sm">
+                              {formatPct(r)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="border-t-2 border-border">
+                        <td className="px-2 py-2.5 text-xs font-bold text-foreground sm:text-sm">Total</td>
+                        <td className="px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
+                          {formatNumber(monthTarget)}
+                        </td>
+                        <td className="px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
+                          {formatNumber(totalMonthActual)}
+                        </td>
+                        <td className="px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
+                          {formatPct(totalRatio)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            }
+            right={
+              <TrackCard target={trackTarget} actual={totalMonthActual} totalTarget={monthTarget} day={trackDay} />
+            }
+          />
+        </div>
+      ) : (
       <div>
         <p className="mb-3 text-2xs font-semibold tracking-kicker text-subtle uppercase">
           Department sections
@@ -326,7 +419,7 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
                     </section>
                   }
                   right={
-                    <TrackCard target={d.track} actual={d.actual} day={trackDay} />
+                    <TrackCard target={d.track} actual={d.actual} totalTarget={d.target} day={trackDay} />
                   }
                 />
               </div>
@@ -334,6 +427,7 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
           })}
         </div>
       </div>
+      )}
 
       {/* First 15 days + 80% checkpoint */}
       <SplitPair
@@ -356,16 +450,16 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
         }
       />
 
-      {/* Second half + Month total at 85% */}
+      {/* Second half (cumulative) + Month total at 85% */}
       {visibleSecond && (
         <SplitPair
           bp="md"
           left={
             <HalfCard
               title="Second half"
-              subtitle={`Day 16 to Day ${daysInMonth}`}
-              target={secondHalfTarget}
-              actual={secondHalfActual}
+              subtitle="Cumulative actual vs total target"
+              target={monthTarget}
+              actual={totalMonthActual}
             />
           }
           right={

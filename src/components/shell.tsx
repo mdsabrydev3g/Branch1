@@ -181,7 +181,7 @@ function Topbar() {
               }
             }}
             className={cn(
-              "pressable rounded-lg px-3 py-2 text-xs font-medium",
+              "pressable rounded-lg px-2.5 py-1.5 text-xs font-medium",
               role === "manager"
                 ? "bg-primary text-primary-foreground"
                 : "bg-card text-muted",
@@ -193,7 +193,7 @@ function Topbar() {
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value as any)}
-          className="h-11 min-w-[120px] appearance-none rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground outline-none focus:border-primary"
+          className="h-9 min-w-[104px] appearance-none rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none focus:border-primary"
         >
           {PERIODS.map((p) => (
             <option key={p.id} value={p.id}>
