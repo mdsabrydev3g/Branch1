@@ -25,8 +25,8 @@ const NAV: {
   icon: typeof LayoutGrid;
 }[] = [
   { id: "overview", label: "Overview", short: "Home", icon: LayoutGrid },
-  { id: "tv", label: "TV — AC", short: "TV-AC", icon: Tv },
-  { id: "mda", label: "MDA - SDA", short: "MDA - SDA", icon: Layers },
+  { id: "tv", label: "TV — AC", short: "TV·AC", icon: Tv },
+  { id: "mda", label: "MDA - SDA", short: "MDA·SDA", icon: Layers },
   { id: "mobile", label: "Mobile", short: "Mobile", icon: Smartphone },
   { id: "daily", label: "Daily Editor", short: "Daily", icon: Edit },
   { id: "reports", label: "Reports", short: "Report", icon: FileBarChart },
@@ -141,9 +141,9 @@ function Sidebar() {
         })}
       </nav>
       <div className="mt-auto border-t border-border px-3 pt-4 text-xs text-subtle">
-        Internal performance workspace
+        Created By Mohamed Sabry
         <br />
-        FY 2026 · v2.0
+        FY 2026
       </div>
     </aside>
   );
@@ -260,7 +260,7 @@ function MobileNav() {
 
   return (
     <nav className="print-hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-navy pb-safe lg:hidden">
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = view === item.id;
@@ -270,11 +270,11 @@ function MobileNav() {
               type="button"
               onClick={() => setView(item.id)}
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 text-2xs font-medium",
+                "flex min-h-12 flex-col items-center justify-center gap-0.5 whitespace-nowrap px-0.5 text-[10px] font-medium",
                 active ? "text-primary" : "text-subtle",
               )}
             >
-              <Icon className="size-5" strokeWidth={active ? 2 : 1.75} />
+              <Icon className="size-4" strokeWidth={active ? 2 : 1.75} />
               {item.short}
             </button>
           );

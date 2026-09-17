@@ -102,8 +102,11 @@ export function OverviewView() {
       const target = kpi === "Gross" && enteredTarget === 0 ? totalDepsTarget : enteredTarget;
       const actual = kpi === "Gross" && enteredActual === 0 ? totalDepsActual : enteredActual;
 
-      const track = calculateTrackTarget(target, period);
-      const dailyTarget = calculateDailyTarget(target, period);
+      // CR معدل تحويل (%): مستهدفه ثابت طوال الشهر — لا تقسيم نصف أول/ثاني
+      // النسبة = آخر قراءة مُدخلة ÷ الرقم المكتوب في خانة CR (مثال 16 ÷ 20 = 80%)
+      const isRateKpi = kpi === "CR";
+      const track = isRateKpi ? target : calculateTrackTarget(target, period);
+      const dailyTarget = isRateKpi ? 0 : calculateDailyTarget(target, period);
 
       result[kpi] = {
         target,

@@ -461,9 +461,17 @@ export function DailyEditor() {
                 {KPIS.map((kpi) => {
                   const targetVal = parseFloat(kpiTargetDrafts[kpi] || "0") || 0;
                   const actualVal = parseFloat(kpiActualDrafts[kpi] || "0") || 0;
+                  // CR معدل تحويل (%): النسبة على الشهر كامل = المحقق ÷ المستهدف مباشرة
+                  const isRateKpi = kpi === "CR";
                   const dailyTarget = targetVal > 0 ? targetVal / daysInMonth : 0;
-                  const trackTarget = dailyTarget * trackDay;
-                  const achievementRatio = trackTarget > 0 ? actualVal / trackTarget : 0;
+                  const trackTarget = isRateKpi ? 0 : dailyTarget * trackDay;
+                  const achievementRatio = isRateKpi
+                    ? targetVal > 0
+                      ? actualVal / targetVal
+                      : 0
+                    : trackTarget > 0
+                      ? actualVal / trackTarget
+                      : 0;
 
                   return (
                     <tr key={kpi} className="hover:bg-card-2/30 transition-colors">
@@ -487,7 +495,7 @@ export function DailyEditor() {
 
                       {/* Track Target */}
                       <td className="px-3 py-3 font-mono text-xs text-muted">
-                        {formatNumber(trackTarget)}
+                        {isRateKpi ? "—" : formatNumber(trackTarget)}
                       </td>
 
                       {/* Cumulative Actual Input */}
