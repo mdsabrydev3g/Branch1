@@ -13,9 +13,11 @@ import {
   formatPct,
   getTrackDay,
   latestDailyValue,
+  latestDailyValueBefore,
   localDateString,
   monthActualFromDaily,
   showSecondHalf,
+  statusOf,
   KPIS,
   periodMeta,
   ratio,
@@ -46,20 +48,32 @@ export function ReportsView() {
   const depValue = (dep: (typeof DEPS)[number]) => {
     const fallback = block[dep] ? sumBlock(block[dep]) : { plan: 0, result: 0 };
     const daily = departmentDailyActuals[period]?.[dep] ?? {};
+    const hasDaily = Object.keys(daily).length > 0;
     const target = departmentTargets[period]?.[dep] ?? fallback.plan;
     const actual = monthActualFromDaily(daily, fallback.result);
     const track = Math.round(calculateTrackTarget(target, period, today));
-    return { target, actual, track };
+    const throughYesterday = hasDaily
+      ? latestDailyValueBefore(daily, today)
+      : fallback.result;
+    return { target, actual, track, throughYesterday };
   };
 
   const totals = DEPS.reduce(
-    (total, dep) => {
+    (total: { plan: number; result: number; track: number; throughYesterday: number }, dep) => {
       const v = depValue(dep);
-      return { plan: total.plan + v.target, result: total.result + v.actual };
+      return {
+        plan: total.plan + v.target,
+        result: total.result + v.actual,
+        track: total.track + v.track,
+        throughYesterday: total.throughYesterday + v.throughYesterday,
+      };
     },
-    { plan: 0, result: 0 },
+    { plan: 0, result: 0, track: 0, throughYesterday: 0 },
   );
-  const totalRatio = ratio(totals);
+  // Top % mirrors the overview circle: actual through yesterday ÷ track
+  const totalRatio = ratio({ plan: totals.track, result: totals.throughYesterday });
+  const totalTone =
+    totalRatio >= 1 ? "text-success" : totalRatio >= 0.8 ? "text-warning" : "text-danger";
 
   const branchFirstHalf = DEPS.reduce(
     (sum, dep) => sum + firstHalfActualFromDaily(departmentDailyActuals[period]?.[dep] ?? {}),
@@ -112,10 +126,11 @@ export function ReportsView() {
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Summary label="Plan" value={formatNumber(totals.plan)} />
         <Summary label="Result" value={formatNumber(totals.result)} />
-        <Summary label="%" value={formatPct(totalRatio)} />
+        <Summary label="%" value={formatPct(totalRatio)} valueClass={totalTone} />
         <Summary
           label="Status"
           value={totalRatio >= 1 ? "Good" : totalRatio >= 0.8 ? "Will Do" : "Danger"}
+          valueClass={totalTone}
         />
       </section>
 
@@ -148,8 +163,8 @@ export function ReportsView() {
               left={
                 <HalfSummary
                   label="Second half"
-                  target={totals.plan}
-                  actual={totals.result}
+                  target={secondHalfTarget}
+                  actual={Math.max(0, totals.result - branchFirstHalf)}
                 />
               }
               right={
@@ -169,7 +184,9 @@ export function ReportsView() {
           const rows = group.deps.map((dep) => ({ dep, ...depValue(dep) }));
           const gTarget = rows.reduce((s, r) => s + r.target, 0);
           const gActual = rows.reduce((s, r) => s + r.actual, 0);
-          const gRatio = ratio({ plan: gTarget, result: gActual });
+          const gTrack = rows.reduce((s, r) => s + r.track, 0);
+          const gThrough = rows.reduce((s, r) => s + r.throughYesterday, 0);
+          const gRatio = ratio({ plan: gTrack, result: gThrough });
           return (
             <section
               key={group.id}
@@ -197,22 +214,22 @@ export function ReportsView() {
                   </thead>
                   <tbody>
                     {rows.map((r) => {
-                      const rr = ratio({ plan: r.target, result: r.actual });
+                      const rr = ratio({ plan: r.track, result: r.throughYesterday });
                       return (
                         <tr key={r.dep} className="border-b border-border/60 last:border-0">
                           <td className="truncate px-2 py-2.5 text-xs font-medium text-foreground sm:text-sm">
                             {r.dep}
                           </td>
-                          <td className="px-2 py-2.5 text-right font-mono text-xs tabular-nums text-muted sm:text-sm">
+                          <td className="px-2 py-2.5 text-right font-mono text-[11px] whitespace-nowrap tabular-nums text-muted sm:text-xs">
                             {formatNumber(r.target)}
                           </td>
-                          <td className="hidden px-2 py-2.5 text-right font-mono text-xs tabular-nums text-muted sm:table-cell sm:text-sm">
+                          <td className="hidden px-2 py-2.5 text-right font-mono text-[11px] whitespace-nowrap tabular-nums text-muted sm:table-cell sm:text-xs">
                             {formatNumber(r.track)}
                           </td>
-                          <td className="px-2 py-2.5 text-right font-mono text-xs font-semibold tabular-nums text-foreground sm:text-sm">
+                          <td className="px-2 py-2.5 text-right font-mono text-[11px] font-semibold whitespace-nowrap tabular-nums text-foreground sm:text-xs">
                             {formatNumber(r.actual)}
                           </td>
-                          <td className="px-2 py-2.5 text-right font-mono text-xs font-semibold tabular-nums text-muted sm:text-sm">
+                          <td className="px-2 py-2.5 text-right font-mono text-[11px] font-semibold whitespace-nowrap tabular-nums text-muted sm:text-xs">
                             {formatPct(rr)}
                           </td>
                         </tr>
@@ -220,16 +237,16 @@ export function ReportsView() {
                     })}
                     <tr className="border-t-2 border-border">
                       <td className="px-2 py-2.5 text-xs font-bold text-foreground sm:text-sm">Total</td>
-                      <td className="px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
+                      <td className="px-2 py-2.5 text-right font-mono text-[11px] font-bold whitespace-nowrap tabular-nums text-foreground sm:text-xs">
                         {formatNumber(gTarget)}
                       </td>
-                      <td className="hidden px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:table-cell sm:text-sm">
-                        {formatNumber(rows.reduce((s, r) => s + r.track, 0))}
+                      <td className="hidden px-2 py-2.5 text-right font-mono text-[11px] font-bold whitespace-nowrap tabular-nums text-foreground sm:table-cell sm:text-xs">
+                        {formatNumber(gTrack)}
                       </td>
-                      <td className="px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
+                      <td className="px-2 py-2.5 text-right font-mono text-[11px] font-bold whitespace-nowrap tabular-nums text-foreground sm:text-xs">
                         {formatNumber(gActual)}
                       </td>
-                      <td className="px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
+                      <td className="px-2 py-2.5 text-right font-mono text-[11px] font-bold whitespace-nowrap tabular-nums text-foreground sm:text-xs">
                         {formatPct(gRatio)}
                       </td>
                     </tr>
@@ -239,7 +256,7 @@ export function ReportsView() {
               <div className="mt-3">
                 <ProgressBar value={gRatio} />
                 <div className="mt-1 flex justify-between text-xs text-subtle">
-                  <span>Actual / Target</span>
+                  <span>Actual / Track</span>
                   <span className="font-mono">{formatPct(gRatio)}</span>
                 </div>
               </div>
@@ -322,13 +339,13 @@ function ProgressMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Summary({ label, value }: { label: string; value: string }) {
+function Summary({ label, value, valueClass = "text-foreground" }: { label: string; value: string; valueClass?: string }) {
   return (
     <div className="hairline print-surface rounded-2xl bg-card/80 px-4 py-3">
       <div className="text-2xs tracking-wide text-subtle uppercase">
         {label}
       </div>
-      <div className="mt-1 truncate font-mono text-lg tabular-nums text-foreground">
+      <div className={`mt-1 truncate font-mono text-lg tabular-nums ${valueClass}`}>
         {value}
       </div>
     </div>

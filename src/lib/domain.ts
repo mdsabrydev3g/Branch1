@@ -325,6 +325,19 @@ export function latestDailyValue(daily: Record<string, number> | undefined): num
   return Number(daily[dates[dates.length - 1]]) || 0;
 }
 
+/** Latest cumulative entry strictly before the given date (through yesterday). */
+export function latestDailyValueBefore(
+  daily: Record<string, number> | undefined,
+  beforeDate: string,
+): number {
+  if (!daily) return 0;
+  const dates = Object.keys(daily)
+    .filter((date) => date < beforeDate)
+    .sort();
+  if (!dates.length) return 0;
+  return Number(daily[dates[dates.length - 1]]) || 0;
+}
+
 export function latestDailyValueUpToDay(
   daily: Record<string, number> | undefined,
   maxDay: number,

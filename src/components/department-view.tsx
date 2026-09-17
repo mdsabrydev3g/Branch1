@@ -7,10 +7,12 @@ import {
   calculateDailyTarget,
   calculateFirstHalfTarget,
   calculateRemaining,
+  calculateSecondHalfTarget,
   calculateTrackTarget,
   firstHalfActualFromDaily,
   formatNumber,
   formatPct,
+  getDaysInMonth,
   getTrackDay,
   localDateString,
   monthActualFromDaily,
@@ -72,7 +74,7 @@ function MetricBoxes({ items }: { items: MetricItem[] }) {
           </span>
           <p
             className={cn(
-              "mt-1 truncate font-mono text-base font-bold tabular-nums sm:text-lg",
+              "mt-1 truncate font-mono text-sm font-bold tabular-nums sm:text-base",
               item.accent ?? "text-foreground",
             )}
           >
@@ -223,6 +225,7 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
 
   const today = localDateString();
   const block = data[period] ?? {};
+  const daysInMonth = getDaysInMonth(period);
   const trackDay = getTrackDay(period, today);
   const visibleSecond = showSecondHalf(period, today);
 
@@ -249,11 +252,14 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
   const monthTarget = depStats.reduce((sum, d) => sum + d.target, 0);
   const totalMonthActual = depStats.reduce((sum, d) => sum + d.actual, 0);
   const firstHalfActual = depStats.reduce((sum, d) => sum + d.firstHalf, 0);
+  // Second-half increment = current cumulative minus first-half actual
+  const secondHalfActual = Math.max(0, totalMonthActual - firstHalfActual);
 
   const trackTarget = Math.round(calculateTrackTarget(monthTarget, period, today));
   const dailyTarget = Math.round(calculateDailyTarget(monthTarget, period));
   const firstHalfTarget = Math.round(calculateFirstHalfTarget(monthTarget, period));
   const checkpoint80Target = Math.round(calculate80PercentTarget(firstHalfTarget));
+  const secondHalfTarget = Math.round(calculateSecondHalfTarget(monthTarget, period));
   const month85Target = Math.round(calculate85PercentTarget(monthTarget));
 
   const totalRatio = ratio({ plan: monthTarget, result: totalMonthActual });
@@ -348,13 +354,13 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
                             <td className="truncate px-2 py-2.5 text-xs font-semibold text-foreground sm:text-sm">
                               {DEP_SHORT[d.depKey]}
                             </td>
-                            <td className="px-2 py-2.5 text-right font-mono text-xs tabular-nums text-muted sm:text-sm">
+                            <td className="px-2 py-2.5 text-right font-mono text-[11px] whitespace-nowrap tabular-nums text-muted sm:text-xs">
                               {formatNumber(d.target)}
                             </td>
-                            <td className="px-2 py-2.5 text-right font-mono text-xs font-semibold tabular-nums text-foreground sm:text-sm">
+                            <td className="px-2 py-2.5 text-right font-mono text-[11px] font-semibold whitespace-nowrap tabular-nums text-foreground sm:text-xs">
                               {formatNumber(d.actual)}
                             </td>
-                            <td className="px-2 py-2.5 text-right font-mono text-xs font-semibold tabular-nums text-muted sm:text-sm">
+                            <td className="px-2 py-2.5 text-right font-mono text-[11px] font-semibold whitespace-nowrap tabular-nums text-muted sm:text-xs">
                               {formatPct(r)}
                             </td>
                           </tr>
@@ -362,13 +368,13 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
                       })}
                       <tr className="border-t-2 border-border">
                         <td className="px-2 py-2.5 text-xs font-bold text-foreground sm:text-sm">Total</td>
-                        <td className="px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
+                        <td className="px-2 py-2.5 text-right font-mono text-[11px] font-bold whitespace-nowrap tabular-nums text-foreground sm:text-xs">
                           {formatNumber(monthTarget)}
                         </td>
-                        <td className="px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
+                        <td className="px-2 py-2.5 text-right font-mono text-[11px] font-bold whitespace-nowrap tabular-nums text-foreground sm:text-xs">
                           {formatNumber(totalMonthActual)}
                         </td>
-                        <td className="px-2 py-2.5 text-right font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
+                        <td className="px-2 py-2.5 text-right font-mono text-[11px] font-bold whitespace-nowrap tabular-nums text-foreground sm:text-xs">
                           {formatPct(totalRatio)}
                         </td>
                       </tr>
@@ -450,16 +456,16 @@ export function DepartmentGroupView({ title, deps }: { title: string; deps: stri
         }
       />
 
-      {/* Second half (cumulative) + Month total at 85% */}
+      {/* Second half (increment) + Month total at 85% */}
       {visibleSecond && (
         <SplitPair
           bp="md"
           left={
             <HalfCard
               title="Second half"
-              subtitle="Cumulative actual vs total target"
-              target={monthTarget}
-              actual={totalMonthActual}
+              subtitle={`Day 16 to Day ${daysInMonth}`}
+              target={secondHalfTarget}
+              actual={secondHalfActual}
             />
           }
           right={

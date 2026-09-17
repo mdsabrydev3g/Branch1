@@ -330,7 +330,7 @@ export function DailyEditor() {
                   <th className="px-4 py-3 font-semibold">Department</th>
                   <th className="px-3 py-3 font-semibold">Monthly Target</th>
                   <th className="px-3 py-3 font-semibold text-primary">
-                    Cumulative Actual
+                    Actual
                   </th>
                 </tr>
               </thead>
@@ -404,7 +404,7 @@ export function DailyEditor() {
                   <th className="px-4 py-3 font-semibold">KPI</th>
                   <th className="px-3 py-3 font-semibold">Target (Plan)</th>
                   <th className="px-3 py-3 font-semibold text-primary">
-                    Cumulative Actual
+                    Actual
                   </th>
                 </tr>
               </thead>
