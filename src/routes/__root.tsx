@@ -8,7 +8,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Fayoum 1 | Command Center";
+const APP_NAME = "Fayoum 1";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -20,7 +20,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Fayoum 1 performance command center — branch index, desks and monthly reports.",
+          "Fayoum 1 branch performance — targets, desks and monthly reports.",
       },
     ],
     links: [
