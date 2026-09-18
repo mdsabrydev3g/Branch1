@@ -186,6 +186,11 @@ export function ReportsView() {
           const gActual = rows.reduce((s, r) => s + r.actual, 0);
           const gTrack = rows.reduce((s, r) => s + r.track, 0);
           const gThrough = rows.reduce((s, r) => s + r.throughYesterday, 0);
+          const gFirstHalf = rows.reduce(
+            (s, r) => s + firstHalfActualFromDaily(departmentDailyActuals[period]?.[r.dep] ?? {}),
+            0,
+          );
+          const gSecondHalf = Math.max(0, gThrough - gFirstHalf);
           const gRatio = ratio({ plan: gTrack, result: gThrough });
           return (
             <section
@@ -201,18 +206,33 @@ export function ReportsView() {
                   <StatusPill ratio={gRatio} report />
                 </div>
               </div>
-              <div className="overflow-hidden">
-                <table className="w-full border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-border text-2xs uppercase tracking-wider text-subtle">
-                      <th className="px-2 py-2 font-semibold">Department</th>
-                      <th className="px-2 py-2 text-right font-semibold">Target</th>
-                      <th className="hidden px-2 py-2 text-right font-semibold sm:table-cell">Track</th>
-                      <th className="px-2 py-2 text-right font-semibold">Actual</th>
-                      <th className="px-2 py-2 text-right font-semibold">%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              {/* First 15 days + Second half summary for this section */}
+              <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-lg border border-border bg-card/60 px-2 py-1.5 text-center">
+                  <div className="text-2xs text-subtle">First 15 days</div>
+                  <div className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                    {formatNumber(gFirstHalf)}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border bg-card/60 px-2 py-1.5 text-center">
+                  <div className="text-2xs text-subtle">Second half</div>
+                  <div className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                    {formatNumber(gSecondHalf)}
+                  </div>
+                </div>
+              </div>
+                <div className="overflow-hidden">
+                  <table className="w-full border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-border text-2xs uppercase tracking-wider text-subtle">
+                        <th className="px-2 py-2 font-semibold">Department</th>
+                        <th className="px-2 py-2 text-right font-semibold">Target</th>
+                        <th className="hidden px-2 py-2 text-right font-semibold sm:table-cell">Track</th>
+                        <th className="px-2 py-2 text-right font-semibold">Actual</th>
+                        <th className="px-2 py-2 text-right font-semibold">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
                     {rows.map((r) => {
                       const rr = ratio({ plan: r.track, result: r.throughYesterday });
                       return (
@@ -253,12 +273,11 @@ export function ReportsView() {
                   </tbody>
                 </table>
               </div>
-              <div className="mt-3">
-                <ProgressBar value={gRatio} />
-                <div className="mt-1 flex justify-between text-xs text-subtle">
-                  <span>Actual / Track</span>
-                  <span className="font-mono">{formatPct(gRatio)}</span>
-                </div>
+              <div className="mt-2 flex justify-between text-xs text-subtle">
+                <span>First 15 days / Second half</span>
+                <span className="font-mono">
+                  {formatNumber(gFirstHalf)} / {formatNumber(gSecondHalf)}
+                </span>
               </div>
             </section>
           );
@@ -332,7 +351,7 @@ function ProgressMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 rounded-lg border border-border/80 bg-card/80 px-1.5 py-2 text-center">
       <div className="truncate text-2xs tracking-wide text-subtle uppercase">{label}</div>
-      <div className="mt-1 truncate font-mono text-xs font-medium tabular-nums text-foreground sm:text-sm">
+      <div className="mt-1 truncate font-mono text-xs tabular-nums text-foreground sm:text-xs">
         {value}
       </div>
     </div>
@@ -345,7 +364,7 @@ function Summary({ label, value, valueClass = "text-foreground" }: { label: stri
       <div className="text-2xs tracking-wide text-subtle uppercase">
         {label}
       </div>
-      <div className={`mt-1 truncate font-mono text-lg tabular-nums ${valueClass}`}>
+      <div className={`mt-1 truncate font-mono text-sm tabular-nums ${valueClass}`}>
         {value}
       </div>
     </div>
