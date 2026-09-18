@@ -160,12 +160,12 @@ export function ReportsView() {
           <HalfSummary
             label="80% milestone"
             target={calculate80PercentTarget(totals.plan)}
-            actual={branchFirstHalfActual}
+            actual={totals.result}
           />
           <HalfSummary
             label="85% milestone"
             target={calculate85PercentTarget(totals.plan)}
-            actual={branchFirstHalfActual}
+            actual={totals.result}
           />
         </div>
       </section>
@@ -225,12 +225,17 @@ export function ReportsView() {
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {KPIS.map((kpi) => {
-            const entry = branchKpis[kpi];
-            const actual = Object.values(branchDailyActuals[period]?.[kpi] ?? {}).reduce(
-              (sum, value) => sum + value,
-              0,
-            );
-            const r = ratio({ plan: entry.plan, result: actual });
+            // Actual = آخر قراءة تراكمية مُدخلة في الشهر (وليس مجموع القراءات —
+            // القراءات تراكمية أصلاً وجمعها يضخم الرقم) مع رجوع لآخر قيمة محفوظة
+            const daily = branchDailyActuals[period]?.[kpi];
+            const latestKpiVal = latestDailyValue(daily);
+            const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
+            const enteredPlan = branchKpis[kpi]?.plan ?? 0;
+            // Gross: عند عدم إدخاله يعادل إجمالي الأقسام تلقائياً (مثل صفحة Overview)
+            const isGross = kpi === "Gross";
+            const target = isGross && enteredPlan === 0 ? totals.plan : enteredPlan;
+            const actual = isGross && enteredActual === 0 ? totals.result : enteredActual;
+            const r = ratio({ plan: target, result: actual });
             return (
               <article key={kpi} className="rounded-xl border border-border bg-card-2/70 p-3">
                 <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
@@ -238,9 +243,9 @@ export function ReportsView() {
                   <StatusPill ratio={r} report />
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <Summary dense label="Target" value={formatNumber(entry.plan)} />
+                  <Summary dense label="Target" value={formatNumber(target)} />
                   <Summary dense label="Actual" value={formatNumber(actual)} />
-                  <Summary dense label="Remaining" value={formatNumber(calculateRemaining(entry.plan, actual))} />
+                  <Summary dense label="Remaining" value={formatNumber(calculateRemaining(target, actual))} />
                 </div>
                 <div className="mt-3">
                   <ProgressBar value={r} />
@@ -264,13 +269,22 @@ function HalfSummary({
   target: number;
   actual: number;
 }) {
+  const r = ratio({ plan: target, result: actual });
   return (
     <div className="min-w-0 rounded-xl border border-border bg-card-2/70 p-3">
-      <div className="truncate text-xs font-medium text-foreground">{label}</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="truncate text-xs font-medium text-foreground">{label}</div>
+        <div className={cn("shrink-0 font-mono text-xs font-semibold", TONE_TEXT[statusOf(r).tone])}>
+          {formatPct(r)}
+        </div>
+      </div>
       <div className="mt-2 grid min-w-0 grid-cols-3 gap-1.5">
         <ProgressMetric label="Target" value={formatNumber(target)} />
         <ProgressMetric label="Actual" value={formatNumber(actual)} />
         <ProgressMetric label="Remaining" value={formatNumber(calculateRemaining(target, actual))} />
+      </div>
+      <div className="mt-2.5">
+        <ProgressBar value={r} />
       </div>
     </div>
   );
@@ -336,6 +350,8 @@ function downloadCsv(
   branchDailyActuals: BranchDailyActuals,
 ) {
   const lines = [["Section", "Measure", "Target", "Actual", "Progress", "Status"]];
+  let branchPlanSum = 0;
+  let branchActualSum = 0;
   for (const dep of DEPS) {
     const fallback = sumBlock(block[dep]);
     const target = departmentTargets[period]?.[dep] ?? fallback.plan;
@@ -343,12 +359,17 @@ function downloadCsv(
     const latestVal = latestDailyValue(daily);
     const actual = latestVal > 0 ? latestVal : (Object.keys(daily).length > 0 ? latestVal : fallback.result);
     const departmentRatio = ratio({ plan: target, result: actual });
+    branchPlanSum += target;
+    branchActualSum += actual;
     lines.push([dep, "Department total", String(target), String(actual), formatPct(departmentRatio), statusText(departmentRatio)]);
   }
   for (const kpi of KPIS) {
-    const target = branchKpis[kpi]?.plan ?? 0;
+    const isGross = kpi === "Gross";
+    const enteredPlan = branchKpis[kpi]?.plan ?? 0;
     const latestKpiVal = latestDailyValue(branchDailyActuals[period]?.[kpi]);
-    const actual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
+    const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
+    const target = isGross && enteredPlan === 0 ? branchPlanSum : enteredPlan;
+    const actual = isGross && enteredActual === 0 ? branchActualSum : enteredActual;
     const kpiRatio = ratio({ plan: target, result: actual });
     lines.push(["Branch KPIs", kpi, String(target), String(actual), formatPct(kpiRatio), statusText(kpiRatio)]);
   }

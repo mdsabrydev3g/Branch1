@@ -91,6 +91,9 @@ export function DepartmentGroupView({
   const checkpointRatio = ratio({ plan: checkpoint80Target, result: firstHalfActual });
   const secondHalfRatio = ratio({ plan: secondHalfTarget, result: secondHalfActual });
   const totalRatio = ratio({ plan: monthTarget, result: totalMonthActual });
+  // 85% milestone: اجمالي المحقق التراكمي ÷ 85% من المستهدف العام للمجموعة
+  const milestone85Target = Math.round(monthTarget * 0.85);
+  const milestone85Ratio = ratio({ plan: milestone85Target, result: totalMonthActual });
 
   // شرط عرض كارت النصف الثاني (من يوم 16 في الشهر الحالي أو عند عرض أشهر سابقة)
   const showSecondHalf = currentDay >= 16 || period < currentMonthPeriod;
@@ -193,6 +196,32 @@ export function DepartmentGroupView({
           </div>
         </section>
       )}
+
+      {/* 4. 85% milestone Card — اجمالي المحقق التراكمي ÷ 85% من المستهدف العام */}
+      <section className="hairline print-surface gradient-border rounded-2xl bg-card/90 p-6 card-hover">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">85% milestone</h2>
+            <p className="text-xs text-subtle">Cumulative actual vs 85% of monthly target</p>
+          </div>
+          <StatusPill ratio={milestone85Ratio} />
+        </div>
+        <div className="mt-5 grid grid-cols-3 gap-3 text-center">
+          <StatBox label="Target" value={milestone85Target} />
+          <StatBox label="Actual" value={totalMonthActual} />
+          <StatBox
+            label="Remaining"
+            value={Math.max(0, milestone85Target - totalMonthActual)}
+          />
+        </div>
+        <div className="mt-5">
+          <div className="mb-2 flex justify-between text-xs text-subtle">
+            <span className="font-medium">Achievement</span>
+            <span className="font-semibold text-foreground">{formatPct(milestone85Ratio)}</span>
+          </div>
+          <ProgressBar value={milestone85Ratio} />
+        </div>
+      </section>
     </div>
   );
 }
