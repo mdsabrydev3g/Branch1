@@ -25,8 +25,8 @@ const NAV: {
   icon: typeof LayoutGrid;
 }[] = [
   { id: "overview", label: "Overview", short: "Home", icon: LayoutGrid },
-  { id: "tv", label: "TV-AC", short: "TV·AC", icon: Tv },
-  { id: "mda", label: "MDA-SDA", short: "MDA·SDA", icon: Layers },
+  { id: "tv", label: "TV — AC", short: "TV·AC", icon: Tv },
+  { id: "mda", label: "MDA - SDA", short: "MDA·SDA", icon: Layers },
   { id: "mobile", label: "Mobile", short: "Mobile", icon: Smartphone },
   { id: "daily", label: "Daily Editor", short: "Daily", icon: Edit },
   { id: "reports", label: "Reports", short: "Report", icon: FileBarChart },
@@ -68,15 +68,24 @@ export function Shell() {
         <main className="flex-1 px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-10">
           {view === "overview" && <Overview />}
           {view === "tv" && (
-            <DepartmentGroupView title="TV-AC" deps={["TV", "AC"]} />
+            <DepartmentGroupView
+              title="TV + AC"
+              deps={["TV", "AC"]}
+              groupId="tv-ac"
+            />
           )}
           {view === "mda" && (
-            <DepartmentGroupView title="MDA-SDA" deps={["MDA", "SDA"]} />
+            <DepartmentGroupView
+              title="MDA + SDA"
+              deps={["MDA", "SDA"]}
+              groupId="mda-sda"
+            />
           )}
           {view === "mobile" && (
             <DepartmentGroupView
               title="Mobile"
               deps={["IT Laptop", "IT Other", "Telecom Mobile", "Telecom ACC"]}
+              groupId="mobile"
             />
           )}
           {view === "daily" && <DailyEditor />}
@@ -181,7 +190,7 @@ function Topbar() {
               }
             }}
             className={cn(
-              "pressable rounded-lg px-2.5 py-1.5 text-xs font-medium",
+              "pressable rounded-lg px-3 py-2 text-xs font-medium",
               role === "manager"
                 ? "bg-primary text-primary-foreground"
                 : "bg-card text-muted",
@@ -193,7 +202,7 @@ function Topbar() {
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value as any)}
-          className="h-9 min-w-[104px] appearance-none rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none focus:border-primary"
+          className="h-11 min-w-[120px] appearance-none rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground outline-none focus:border-primary"
         >
           {PERIODS.map((p) => (
             <option key={p.id} value={p.id}>

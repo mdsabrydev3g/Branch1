@@ -1,22 +1,29 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
+  formatNumber,
+  formatPct,
   getDaysInMonth,
   getTrackDay,
   localDateString,
+  ratio,
   DEPS,
   KPIS,
   DEP_COPY,
+  statusOf,
   type Kpi,
   type Dep,
   type PeriodId,
 } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/status-pill";
 import { cn } from "@/lib/utils";
 import {
   Calendar,
   Save,
   RefreshCw,
+  Target,
+  TrendingUp,
   Layers,
   BarChart3,
   CheckCircle2,
@@ -38,12 +45,9 @@ export function DailyEditor() {
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  // Default to yesterday's date (local time)
-  const [editingDate, setEditingDate] = useState<string>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return localDateString(d);
-  });
+  // الافتراضي هو تاريخ اليوم: الإدخال اليومي يُحفظ تحت تاريخ اليوم، وتغيير
+  // Entry Date يجلب المدخلات التي أُدخلت فعلياً في ذلك اليوم
+  const [editingDate, setEditingDate] = useState<string>(() => localDateString());
 
   const [depActualDrafts, setDepActualDrafts] = useState<Record<string, string>>({});
   const [depTargetDrafts, setDepTargetDrafts] = useState<Record<string, string>>({});
@@ -77,9 +81,9 @@ export function DailyEditor() {
     const newKpiActuals: Record<string, string> = {};
     const newKpiTargets: Record<string, string> = {};
     KPIS.forEach((kpi) => {
-      // Show exactly what was entered for the selected date (empty when nothing yet)
+      // عرض ما أُدخل فعلياً في هذا اليوم فقط — بلا رجوع لآخر قيمة تراكمية
       const actualVal = periodKpiDaily[kpi]?.[editingDate];
-      newKpiActuals[kpi] = actualVal !== undefined ? String(actualVal) : "";
+      newKpiActuals[kpi] = actualVal !== undefined && actualVal > 0 ? String(actualVal) : "";
       const targetVal = periodKpiTargets[kpi] ?? branchKpis[kpi]?.plan;
       newKpiTargets[kpi] = targetVal !== undefined && targetVal > 0 ? String(targetVal) : "";
     });
@@ -229,7 +233,7 @@ export function DailyEditor() {
             Daily Cumulative Sales Editor
           </h1>
           <p className="text-xs text-subtle">
-            Enter the cumulative sales achieved up to the selected date.
+            Enter the cumulative sales achieved up to the selected date (المحقق التراكمي حتى الأمس).
           </p>
         </div>
 
@@ -329,13 +333,23 @@ export function DailyEditor() {
                 <tr className="border-b border-border bg-card-2/40 text-2xs uppercase tracking-wider text-subtle">
                   <th className="px-4 py-3 font-semibold">Department</th>
                   <th className="px-3 py-3 font-semibold">Monthly Target</th>
+                  <th className="px-3 py-3 font-semibold">Daily Target</th>
+                  <th className="px-3 py-3 font-semibold">Track (حتى الأمس)</th>
                   <th className="px-3 py-3 font-semibold text-primary">
                     Actual
                   </th>
+                  <th className="px-3 py-3 font-semibold text-right">Achievement %</th>
+                  <th className="px-4 py-3 font-semibold text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-sm">
                 {DEPS.map((dep) => {
+                  const targetVal = parseFloat(depTargetDrafts[dep] || "0") || 0;
+                  const actualVal = parseFloat(depActualDrafts[dep] || "0") || 0;
+                  const dailyTarget = targetVal > 0 ? targetVal / daysInMonth : 0;
+                  const trackTarget = dailyTarget * trackDay;
+                  const achievementRatio = trackTarget > 0 ? actualVal / trackTarget : 0;
+
                   return (
                     <tr key={dep} className="hover:bg-card-2/30 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">
@@ -357,6 +371,16 @@ export function DailyEditor() {
                         />
                       </td>
 
+                      {/* Daily Target (Calculated) */}
+                      <td className="px-3 py-3 font-mono text-xs text-subtle">
+                        {formatNumber(dailyTarget)}
+                      </td>
+
+                      {/* Track Target (Calculated) */}
+                      <td className="px-3 py-3 font-mono text-xs text-muted">
+                        {formatNumber(trackTarget)}
+                      </td>
+
                       {/* Cumulative Actual Input */}
                       <td className="px-3 py-3">
                         <input
@@ -369,6 +393,26 @@ export function DailyEditor() {
                           placeholder="0"
                           className="h-10 w-32 rounded-lg border-2 border-primary/50 bg-navy px-3 font-mono text-sm font-semibold text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         />
+                      </td>
+
+                      {/* Achievement Ratio */}
+                      <td className="px-3 py-3 text-right font-mono text-xs font-semibold">
+                        <span
+                          className={cn(
+                            achievementRatio >= 1
+                              ? "text-success"
+                              : achievementRatio >= 0.8
+                                ? "text-amber-400"
+                                : "text-danger",
+                          )}
+                        >
+                          {formatPct(achievementRatio)}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3 text-right">
+                        <StatusPill ratio={achievementRatio} />
                       </td>
                     </tr>
                   );
@@ -403,13 +447,30 @@ export function DailyEditor() {
                 <tr className="border-b border-border bg-card-2/40 text-2xs uppercase tracking-wider text-subtle">
                   <th className="px-4 py-3 font-semibold">KPI</th>
                   <th className="px-3 py-3 font-semibold">Target (Plan)</th>
+                  <th className="px-3 py-3 font-semibold">Track (حتى الأمس)</th>
                   <th className="px-3 py-3 font-semibold text-primary">
                     Actual
                   </th>
+                  <th className="px-3 py-3 font-semibold text-right">Achievement %</th>
+                  <th className="px-4 py-3 font-semibold text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-sm">
                 {KPIS.map((kpi) => {
+                  const targetVal = parseFloat(kpiTargetDrafts[kpi] || "0") || 0;
+                  const actualVal = parseFloat(kpiActualDrafts[kpi] || "0") || 0;
+                  // CR معدل تحويل (%): النسبة على الشهر كامل = المحقق ÷ المستهدف مباشرة
+                  const isRateKpi = kpi === "CR";
+                  const dailyTarget = targetVal > 0 ? targetVal / daysInMonth : 0;
+                  const trackTarget = isRateKpi ? 0 : dailyTarget * trackDay;
+                  const achievementRatio = isRateKpi
+                    ? targetVal > 0
+                      ? actualVal / targetVal
+                      : 0
+                    : trackTarget > 0
+                      ? actualVal / trackTarget
+                      : 0;
+
                   return (
                     <tr key={kpi} className="hover:bg-card-2/30 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">
@@ -430,6 +491,11 @@ export function DailyEditor() {
                         />
                       </td>
 
+                      {/* Track Target */}
+                      <td className="px-3 py-3 font-mono text-xs text-muted">
+                        {isRateKpi ? "—" : formatNumber(trackTarget)}
+                      </td>
+
                       {/* Cumulative Actual Input */}
                       <td className="px-3 py-3">
                         <input
@@ -442,6 +508,26 @@ export function DailyEditor() {
                           placeholder="0"
                           className="h-10 w-32 rounded-lg border-2 border-primary/50 bg-navy px-3 font-mono text-sm font-semibold text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         />
+                      </td>
+
+                      {/* Achievement Ratio */}
+                      <td className="px-3 py-3 text-right font-mono text-xs font-semibold">
+                        <span
+                          className={cn(
+                            achievementRatio >= 1
+                              ? "text-success"
+                              : achievementRatio >= 0.8
+                                ? "text-amber-400"
+                                : "text-danger",
+                          )}
+                        >
+                          {formatPct(achievementRatio)}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3 text-right">
+                        <StatusPill ratio={achievementRatio} />
                       </td>
                     </tr>
                   );

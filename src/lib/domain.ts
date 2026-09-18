@@ -62,9 +62,35 @@ export const SALES_GROUPS = [
     title: "Mobile",
     deps: ["IT Laptop", "IT Other", "Telecom Mobile", "Telecom ACC"] as Dep[],
   },
-  { id: "mda-sda", title: "MDA-SDA", deps: ["MDA", "SDA"] as Dep[] },
-  { id: "tv-ac", title: "TV-AC", deps: ["TV", "AC"] as Dep[] },
+  { id: "mda-sda", title: "MDA + SDA", deps: ["MDA", "SDA"] as Dep[] },
+  { id: "tv-ac", title: "TV + AC", deps: ["TV", "AC"] as Dep[] },
 ] as const;
+
+export type SalesGroupId = (typeof SALES_GROUPS)[number]["id"];
+
+/**
+ * Manager-provided first-half (first 15 days of the month) cumulative actuals
+ * per sales group. The Daily Editor stores cumulative readings by date; when
+ * no reading was captured for day 15, these values stand in for the computed
+ * first-half actual, and the second half is derived by subtraction
+ * (cumulative − first half).
+ */
+export const FIRST_HALF_ACTUAL_OVERRIDES: Partial<
+  Record<PeriodId, Partial<Record<SalesGroupId, number>>>
+> = {
+  "2026-09": {
+    "tv-ac": 728466,
+    "mda-sda": 2571348,
+    mobile: 5501737,
+  },
+};
+
+export function firstHalfOverrideFor(
+  period: PeriodId,
+  groupId: SalesGroupId,
+): number | undefined {
+  return FIRST_HALF_ACTUAL_OVERRIDES[period]?.[groupId];
+}
 
 export const DEP_OWNERS: Record<
   Dep,
@@ -288,6 +314,41 @@ export function formatNumber(value: number): string {
   );
 }
 
+/**
+ * Keep long formatted numbers inside their stat boxes: shrink the font as the
+ * digit count grows. Calibrated against rendered widths (mono advance ≈ 0.6em)
+ * for the reports summary cards (~110px+ content) and department stat boxes
+ * (~79px content on phones). Words like status labels keep the full size.
+ */
+export function fitTextClass(text: string): string {
+  if (!/\d/.test(text)) return "text-lg";
+  const len = text.length;
+  if (len <= 6) return "text-lg";
+  if (len <= 8) return "text-sm sm:text-lg";
+  return "text-[11px] sm:text-base";
+}
+
+export function fitNumberClass(value: number): string {
+  return fitTextClass(formatNumber(value));
+}
+
+/** Same idea for the tighter milestone metric boxes (~61px content on sm+). */
+export function fitSmallTextClass(text: string): string {
+  const len = text.length;
+  if (len <= 7) return "text-xs sm:text-sm";
+  if (len <= 9) return "text-xs sm:text-[11px]";
+  return "text-xs sm:text-[10px]";
+}
+
+/** And for the narrow branch-KPI summary cells (~63px content on sm). */
+export function fitDenseTextClass(text: string): string {
+  if (!/\d/.test(text)) return "text-sm sm:text-base";
+  const len = text.length;
+  if (len <= 6) return "text-sm sm:text-base";
+  if (len <= 8) return "text-[11px] sm:text-[12px]";
+  return "text-[10px]";
+}
+
 export function formatPct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
@@ -321,19 +382,6 @@ export function showSecondHalf(period: PeriodId, today = localDateString()): boo
 export function latestDailyValue(daily: Record<string, number> | undefined): number {
   if (!daily) return 0;
   const dates = Object.keys(daily).sort();
-  if (!dates.length) return 0;
-  return Number(daily[dates[dates.length - 1]]) || 0;
-}
-
-/** Latest cumulative entry strictly before the given date (through yesterday). */
-export function latestDailyValueBefore(
-  daily: Record<string, number> | undefined,
-  beforeDate: string,
-): number {
-  if (!daily) return 0;
-  const dates = Object.keys(daily)
-    .filter((date) => date < beforeDate)
-    .sort();
   if (!dates.length) return 0;
   return Number(daily[dates[dates.length - 1]]) || 0;
 }
