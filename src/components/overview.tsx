@@ -17,6 +17,7 @@ import {
 import { usePerfStore } from "@/lib/store";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
+import { cn } from "@/lib/utils";
 
 // Helper function for ratio calculation
 function calculateRatio(plan: number, result: number): number {
@@ -159,30 +160,19 @@ export function OverviewView() {
     return result;
   }, [deptData, period]);
 
-  // حساب إجمالي الفرع
+  // إجمالي الفرع = نفس قيم Gross في جدول Main KPI حتى تتطابق الدائرة
+  // (Target/Track/Actual) مع صف Gross بدل مجموع الأقسام
   const branchTotal = useMemo(() => {
-    let target = 0;
-    let actual = 0;
-
-    DEPS.forEach((dep) => {
-      const deptInfo = deptData[dep];
-      if (deptInfo) {
-        target += deptInfo.target;
-        actual += deptInfo.actual;
-      }
-    });
-
-    const track = calculateTrackTarget(target, period);
-    // دائرة الفرع الكلي = المحقق ÷ التراك (مستهدف حتى الأمس)
-    const achievementRatio = calculateRatio(track, actual);
-
+    const gross = kpiData["Gross"];
+    if (!gross) return { target: 0, actual: 0, track: 0, achievementRatio: 0 };
+    // دائرة الفرع = المحقق ÷ التراك (مستهدف حتى الأمس) — نفس نسبة صف Gross
     return {
-      target,
-      actual,
-      track,
-      achievementRatio,
+      target: gross.target,
+      actual: gross.actual,
+      track: gross.track,
+      achievementRatio: gross.achievementRatio,
     };
-  }, [deptData, period]);
+  }, [kpiData]);
 
   const periodInfo = useMemo(() => {
     const monthNames = [
@@ -225,13 +215,8 @@ export function OverviewView() {
                   cy="64"
                   r="54"
                   fill="none"
-                  stroke={
-                    branchTotal.achievementRatio >= 1
-                      ? "#10b981"
-                      : branchTotal.achievementRatio >= 0.8
-                        ? "#f59e0b"
-                        : "#ef4444"
-                  }
+                  // الدائرة فقط: خضراء من 80% — باقي المشروع بعتباته الأصلية
+                  stroke={branchTotal.achievementRatio >= 0.8 ? "#10b981" : "#ef4444"}
                   strokeWidth="10"
                   strokeDasharray={`${Math.min(339.292, 339.292 * Math.max(0, branchTotal.achievementRatio))} 339.292`}
                   strokeLinecap="round"
@@ -246,7 +231,17 @@ export function OverviewView() {
               </div>
             </div>
             <div className="mt-2">
-              <StatusPill ratio={branchTotal.achievementRatio} />
+              {/* الدائرة فقط: Good خضراء من 80% — باقي المشروع كما هو */}
+              <span
+                className={cn(
+                  "inline-flex h-7 items-center rounded-full border px-3 text-xs font-semibold tracking-wide transition-all duration-300",
+                  branchTotal.achievementRatio >= 0.8
+                    ? "border-success/30 bg-success/12 text-success shadow-[0_0_15px_rgba(78,201,155,0.3)]"
+                    : "border-danger/30 bg-danger/12 text-danger shadow-[0_0_15px_rgba(240,128,128,0.3)]",
+                )}
+              >
+                {branchTotal.achievementRatio >= 0.8 ? "Good" : "Danger"}
+              </span>
             </div>
           </div>
 
