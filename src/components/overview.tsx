@@ -325,8 +325,28 @@ export function OverviewView() {
           </table>
       </section>
 
-      {/* Bottom Cards */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Bottom Cards — compact stacked rows on mobile so all 3 sections
+          stay visible under the KPI table; 3-column grid on sm+ */}
+      <section className="rounded-2xl bg-card/90 px-4 py-1 sm:hidden">
+        {SALES_GROUPS.map((group, i) => {
+          const data = groupData[group.id];
+          return (
+            <div
+              key={group.id}
+              className={`flex items-center justify-between gap-2 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}
+            >
+              <span className="text-sm font-semibold text-foreground">{group.title}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-lg font-bold tabular-nums text-foreground">
+                  {formatPct(data.achievementRatio)}
+                </span>
+                <StatusPill ratio={data.achievementRatio} compact />
+              </div>
+            </div>
+          );
+        })}
+      </section>
+      <section className="hidden grid-cols-3 gap-4 sm:grid">
         {SALES_GROUPS.map((group) => {
           const data = groupData[group.id];
           return (
