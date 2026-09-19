@@ -183,6 +183,20 @@ export function OverviewView() {
     return `${monthNames[month - 1]} ${year}`;
   }, [period]);
 
+  // عتبات الدائرة فقط — أخضر ≥90%، أصفر 80–89%، أحمر تحت 80%.
+  // باقي المشروع بعتباته الأصلية.
+  const circleRatio = branchTotal.achievementRatio;
+  const circleStroke =
+    circleRatio >= 0.9 ? "#10b981" : circleRatio >= 0.8 ? "#f59e0b" : "#ef4444";
+  const circleLabel =
+    circleRatio >= 0.9 ? "Good" : circleRatio >= 0.8 ? "Will Do" : "Danger";
+  const circlePillTone =
+    circleRatio >= 0.9
+      ? "border-success/30 bg-success/12 text-success shadow-[0_0_15px_rgba(78,201,155,0.3)]"
+      : circleRatio >= 0.8
+        ? "border-warning/30 bg-warning/12 text-warning shadow-[0_0_15px_rgba(232,180,94,0.3)]"
+        : "border-danger/30 bg-danger/12 text-danger shadow-[0_0_15px_rgba(240,128,128,0.3)]";
+
   return (
     <div className="flex flex-col gap-6 px-4 py-6 fade-in">
       {/* Header */}
@@ -215,8 +229,7 @@ export function OverviewView() {
                   cy="64"
                   r="54"
                   fill="none"
-                  // الدائرة فقط: خضراء من 80% — باقي المشروع بعتباته الأصلية
-                  stroke={branchTotal.achievementRatio >= 0.8 ? "#10b981" : "#ef4444"}
+                  stroke={circleStroke}
                   strokeWidth="10"
                   strokeDasharray={`${Math.min(339.292, 339.292 * Math.max(0, branchTotal.achievementRatio))} 339.292`}
                   strokeLinecap="round"
@@ -231,16 +244,14 @@ export function OverviewView() {
               </div>
             </div>
             <div className="mt-2">
-              {/* الدائرة فقط: Good خضراء من 80% — باقي المشروع كما هو */}
+              {/* حبة الدائرة فقط بعتباتها الخاصة — باقي المشروع كما هو */}
               <span
                 className={cn(
                   "inline-flex h-7 items-center rounded-full border px-3 text-xs font-semibold tracking-wide transition-all duration-300",
-                  branchTotal.achievementRatio >= 0.8
-                    ? "border-success/30 bg-success/12 text-success shadow-[0_0_15px_rgba(78,201,155,0.3)]"
-                    : "border-danger/30 bg-danger/12 text-danger shadow-[0_0_15px_rgba(240,128,128,0.3)]",
+                  circlePillTone,
                 )}
               >
-                {branchTotal.achievementRatio >= 0.8 ? "Good" : "Danger"}
+                {circleLabel}
               </span>
             </div>
           </div>
