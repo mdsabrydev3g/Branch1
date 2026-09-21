@@ -7,7 +7,7 @@ export function TvAcView() {
       pageLabel="TV — AC"
       deps={["TV", "AC"]}
       groupId="tv-ac"
-      totalTitle="TV + AC"
+      totalTitle="TV-AC"
     />
   );
 }

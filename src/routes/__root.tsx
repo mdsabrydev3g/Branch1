@@ -47,6 +47,13 @@ function RootDocument() {
   return (
     <html lang="en" className="antialiased" suppressHydrationWarning>
       <head>
+        {/* يطبّق السمة المحفوظة قبل أول رسم — يمنع وميض الوضع الخطأ */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{var t=localStorage.getItem("f1-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}',
+          }}
+        />
         <HeadContent />
       </head>
       <body>

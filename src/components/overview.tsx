@@ -258,77 +258,79 @@ export function OverviewView() {
         </div>
       </section>
 
-      {/* Main KPI Performance — جدول أعمدة وصفوف، KPI محاذي يساراً */}
+      {/* Main KPI Performance — جدول احترافي: فواصل أعمدة + محاذاة أرقام + مساحات مريحة */}
       <section className="rounded-2xl bg-card/90 p-3 sm:p-6">
         <h2 className="mb-4 text-base font-semibold text-foreground">Main KPI performance</h2>
 
-        <table className="w-full table-fixed">
-          <thead>
-            <tr className="bg-gradient-to-r from-card-3 to-card-2 shadow-[inset_0_-1px_0_rgba(107,158,255,0.35)]">
-              <th className="w-[20%] px-1 py-2.5 text-left text-[10px] font-bold text-foreground sm:px-3 sm:text-xs">KPI</th>
-              <th className="w-[18%] px-0.5 py-2.5 text-center text-[10px] font-bold text-foreground sm:px-3 sm:text-xs">Target</th>
-              <th className="w-[18%] px-0.5 py-2.5 text-center text-[10px] font-bold text-foreground sm:px-3 sm:text-xs">Track</th>
-              <th className="w-[18%] px-0.5 py-2.5 text-center text-[10px] font-bold text-foreground sm:px-3 sm:text-xs">Actual</th>
-              <th className="w-[12%] px-0.5 py-2.5 text-center text-[10px] font-bold text-foreground sm:px-3 sm:text-xs">%</th>
-              <th className="w-[14%] px-0.5 py-2.5 text-center text-[10px] font-bold text-foreground sm:px-3 sm:text-xs">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {TABLE_KPIS.map((kpi) => {
-              const d = kpiData[kpi];
-              const tone = perfOf(d.actual, d.track).tone;
-              return (
-                <tr key={kpi} className="border-b border-border">
-                  <td className="whitespace-nowrap px-1 py-2.5 text-left text-[11px] font-medium text-foreground sm:px-3 sm:py-3 sm:text-sm">
-                    {kpi === "BOXI" ? "Boxi" : kpi}
-                  </td>
-                  <td className={numCell()}>
-                    {formatNumber(d.target)}
-                  </td>
-                  <td className={numCell()}>
-                    {formatNumber(d.track)}
-                  </td>
-                  <td className={numCell(true)}>
-                    {formatNumber(d.actual)}
-                  </td>
-                  <td className={cn(numCell(true), toneTextClass(tone))}>
-                    {formatPct0(d.achievementRatio)}
-                  </td>
-                  <td className="px-0.5 py-2.5 text-center sm:px-3 sm:py-3">
-                    <StatusWord tone={tone} compact />
-                  </td>
-                </tr>
-              );
-            })}
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <table className="w-full min-w-[560px] table-fixed border-collapse sm:min-w-[620px]">
+            <thead>
+              <tr className="bg-gradient-to-r from-card-3 to-card-2 shadow-[inset_0_-1px_0_rgba(107,158,255,0.35)]">
+                <th className="w-[21%] border-r border-border/70 px-2 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-foreground sm:px-4 sm:text-xs">KPI</th>
+                <th className="w-[18%] border-r border-border/70 px-2 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-foreground sm:px-4 sm:text-xs">Target</th>
+                <th className="w-[18%] border-r border-border/70 px-2 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-foreground sm:px-4 sm:text-xs">Track</th>
+                <th className="w-[18%] border-r border-border/70 px-2 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-foreground sm:px-4 sm:text-xs">Actual</th>
+                <th className="w-[11%] border-r border-border/70 px-2 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-foreground sm:px-4 sm:text-xs">%</th>
+                <th className="w-[14%] px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-foreground sm:px-4 sm:text-xs">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {TABLE_KPIS.map((kpi) => {
+                const d = kpiData[kpi];
+                const tone = perfOf(d.actual, d.track).tone;
+                return (
+                  <tr key={kpi} className="border-b border-border">
+                    <td className="whitespace-nowrap border-r border-border/70 px-2 py-3 text-left text-[11px] font-semibold text-foreground sm:px-4 sm:py-3.5 sm:text-sm">
+                      {kpi === "BOXI" ? "Boxi" : kpi}
+                    </td>
+                    <td className={numCell()}>
+                      {formatNumber(d.target)}
+                    </td>
+                    <td className={numCell()}>
+                      {formatNumber(d.track)}
+                    </td>
+                    <td className={numCell(true)}>
+                      {formatNumber(d.actual)}
+                    </td>
+                    <td className={cn(numCell(true), toneTextClass(tone))}>
+                      {formatPct0(d.achievementRatio)}
+                    </td>
+                    <td className="px-2 py-3 text-center sm:px-4 sm:py-3.5">
+                      <StatusWord tone={tone} compact />
+                    </td>
+                  </tr>
+                );
+              })}
 
-            {SALES_GROUPS.map((group) => {
-              const d = groupData[group.id];
-              const tone = perfOf(d.actual, d.target).tone;
-              return (
-                <tr key={group.id} className="border-b border-border">
-                  <td className="whitespace-nowrap px-1 py-2.5 text-left text-[11px] font-medium text-foreground sm:px-3 sm:py-3 sm:text-sm">
-                    {group.title}
-                  </td>
-                  <td className={numCell()}>
-                    {formatNumber(d.target)}
-                  </td>
-                  <td className={numCell()}>
-                    {formatNumber(d.track)}
-                  </td>
-                  <td className={numCell(true)}>
-                    {formatNumber(d.actual)}
-                  </td>
-                  <td className={cn(numCell(true), toneTextClass(tone))}>
-                    {formatPct0(d.achievementRatio)}
-                  </td>
-                  <td className="px-0.5 py-2.5 text-center sm:px-3 sm:py-3">
-                    <StatusWord tone={tone} compact />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              {SALES_GROUPS.map((group) => {
+                const d = groupData[group.id];
+                const tone = perfOf(d.actual, d.target).tone;
+                return (
+                  <tr key={group.id} className="border-b border-border">
+                    <td className="whitespace-nowrap border-r border-border/70 px-2 py-3 text-left text-[11px] font-semibold text-foreground sm:px-4 sm:py-3.5 sm:text-sm">
+                      {group.title}
+                    </td>
+                    <td className={numCell()}>
+                      {formatNumber(d.target)}
+                    </td>
+                    <td className={numCell()}>
+                      {formatNumber(d.track)}
+                    </td>
+                    <td className={numCell(true)}>
+                      {formatNumber(d.actual)}
+                    </td>
+                    <td className={cn(numCell(true), toneTextClass(tone))}>
+                      {formatPct0(d.achievementRatio)}
+                    </td>
+                    <td className="px-2 py-3 text-center sm:px-4 sm:py-3.5">
+                      <StatusWord tone={tone} compact />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* أقسام المبيعات — كل قسم في سطر واحد */}
@@ -374,7 +376,7 @@ export function OverviewView() {
 
 function numCell(bold = false) {
   return cn(
-    "whitespace-nowrap px-0.5 py-2.5 text-center font-mono text-[10px] tabular-nums text-foreground sm:px-3 sm:py-3 sm:text-sm",
+    "whitespace-nowrap border-r border-border/70 px-2 py-3 text-right font-mono text-[11px] tabular-nums text-foreground sm:px-4 sm:py-3.5 sm:text-sm",
     bold && "font-semibold",
   );
 }

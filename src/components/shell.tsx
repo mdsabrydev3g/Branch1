@@ -6,13 +6,16 @@ import {
   FileBarChart,
   Layers,
   LayoutGrid,
+  Moon,
   Printer,
   Smartphone,
+  Sun,
   Tv,
   Edit,
 } from "lucide-react";
 import { PERIODS, VIEW_DEP, type ViewId } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
+import { usePrefs, usePrefsEffect } from "@/lib/prefs";
 import { Button } from "@/components/ui/button";
 import { Overview } from "@/components/overview";
 import { TvAcView } from "@/components/tv-ac-view";
@@ -154,10 +157,13 @@ function Topbar() {
   const view = usePerfStore((s) => s.view);
   const role = usePerfStore((s) => s.role);
   const setRole = usePerfStore((s) => s.setRole);
+  const theme = usePrefs((s) => s.theme);
+  const toggleTheme = usePrefs((s) => s.toggleTheme);
   const [managerOpen, setManagerOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const today = format(new Date(), "EEE d MMM yyyy");
+  usePrefsEffect();
 
   return (
     <header className="print-hidden sticky top-0 z-30 border-b border-border bg-navy px-3 py-2 pt-safe sm:px-6 lg:px-8">
@@ -165,6 +171,19 @@ function Topbar() {
         <Brand showText={false} />
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="hidden text-xs text-subtle sm:inline">{today}</span>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="pressable grid size-9 place-items-center rounded-lg border border-border bg-card text-muted hover:border-primary/50 hover:text-foreground sm:size-8"
+          >
+            {theme === "dark" ? (
+              <Sun className="size-4" strokeWidth={2} aria-hidden />
+            ) : (
+              <Moon className="size-4" strokeWidth={2} aria-hidden />
+            )}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -177,7 +196,7 @@ function Topbar() {
               }
             }}
             className={cn(
-              "pressable h-8 rounded-lg px-2.5 text-xs font-medium sm:px-3",
+              "pressable h-9 rounded-lg px-2.5 text-xs font-medium sm:h-8 sm:px-3",
               role === "manager"
                 ? "bg-primary text-primary-foreground"
                 : "bg-card text-muted",
@@ -187,22 +206,23 @@ function Topbar() {
           </button>
           <div className="relative flex items-center">
             <Calendar
-              className="pointer-events-none absolute left-1.5 size-4 text-primary"
+              className="pointer-events-none absolute left-2 size-4 text-primary"
               aria-hidden
             />
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value as any)}
-              className="h-8 max-w-[132px] min-w-0 appearance-none rounded-lg border border-primary/40 bg-card py-0 pl-7 pr-6 text-[11px] font-semibold text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary sm:max-w-[140px] sm:text-xs"
+              aria-label="Select month"
+              className="h-9 w-[122px] min-w-0 appearance-none rounded-lg border border-primary/50 bg-card py-0 pl-8 pr-7 text-xs font-semibold text-foreground shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 sm:h-8 sm:w-[120px]"
             >
               {PERIODS.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.label}
+                  {p.short} {p.id.slice(0, 4)}
                 </option>
               ))}
             </select>
             <ChevronDown
-              className="pointer-events-none absolute right-1.5 size-3.5 text-subtle"
+              className="pointer-events-none absolute right-2 size-4 text-primary"
               aria-hidden
             />
           </div>

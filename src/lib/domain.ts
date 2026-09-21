@@ -70,8 +70,8 @@ export const SALES_GROUPS = [
     title: "Mobile",
     deps: ["Laptop", "Other", "Mobile", "ACC"] as Dep[],
   },
-  { id: "mda-sda", title: "MDA + SDA", deps: ["MDA", "SDA"] as Dep[] },
-  { id: "tv-ac", title: "TV + AC", deps: ["TV", "AC"] as Dep[] },
+  { id: "mda-sda", title: "MDA-SDA", deps: ["MDA", "SDA"] as Dep[] },
+  { id: "tv-ac", title: "TV-AC", deps: ["TV", "AC"] as Dep[] },
 ] as const;
 
 export type SalesGroupId = (typeof SALES_GROUPS)[number]["id"];

@@ -270,14 +270,15 @@ export function DailyEditor() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-navy px-3 py-2">
-            <Calendar className="size-4 text-primary" />
-            <span className="text-xs font-medium text-subtle">Entry Date:</span>
+          <div className="flex h-11 items-center gap-2.5 rounded-xl border border-primary/50 bg-card px-3.5 shadow-sm">
+            <Calendar className="size-[18px] shrink-0 text-primary" aria-hidden />
+            <span className="text-xs font-semibold text-muted">Entry Date:</span>
             <input
               type="date"
               value={editingDate}
               onChange={(e) => setEditingDate(e.target.value)}
-              className="bg-transparent text-sm font-medium text-foreground outline-none"
+              aria-label="Entry date"
+              className="w-[140px] bg-transparent text-sm font-semibold tabular-nums text-foreground outline-none sm:w-[150px]"
             />
           </div>
 

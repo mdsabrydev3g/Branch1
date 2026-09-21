@@ -7,7 +7,7 @@ export function MdaSdaView() {
       pageLabel="MDA — SDA"
       deps={["MDA", "SDA"]}
       groupId="mda-sda"
-      totalTitle="MDA + SDA"
+      totalTitle="MDA-SDA"
     />
   );
 }
