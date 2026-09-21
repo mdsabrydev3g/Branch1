@@ -1,0 +1,37 @@
+(node:5972) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+ [37m╭[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m [Build Info] [39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m╮[39m
+ [37m│[39m                                     [37m│[39m
+ [37m│[39m  - Build Directory: [36m.vercel/output[39m  [37m│[39m
+ [37m│[39m  - Date: 9/20/2026, 8:59:11 PM      [37m│[39m
+ [37m│[39m  - Nitro Version: 3.0.260610-beta   [37m│[39m
+ [37m│[39m  - Nitro Preset: vercel             [37m│[39m
+ [37m│[39m                                     [37m│[39m
+ [37m╰[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m─[39m[37m╯[39m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m8081[22m/[39m
+[db] PGLite bootstrap failed: Error: ENOENT: no such file or directory, open 'D:\Study 2026\UAE\Branch1-main\Branch1-main\.vercel\output\functions\__server.func\_libs\pglite.data'
+    at async open (node:internal/fs/promises:697:25)
+    at async Module.readFile (node:internal/fs/promises:1348:14)
+    at async Object.w$2 (file:///D:/Study%202026/UAE/Branch1-main/Branch1-main/.vercel/output/functions/__server.func/_libs/electric-sql__pglite.mjs:114:16) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Study 2026\\UAE\\Branch1-main\\Branch1-main\\.vercel\\output\\functions\\__server.func\\_libs\\pglite.data'
+}
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+Error: ENOENT: no such file or directory, open 'D:\Study 2026\UAE\Branch1-main\Branch1-main\.vercel\output\functions\__server.func\_libs\pglite.data'
+    at async open (node:internal/fs/promises:697:25)
+    at async Module.readFile (node:internal/fs/promises:1348:14)
+    at async Object.w$2 (file:///D:/Study%202026/UAE/Branch1-main/Branch1-main/.vercel/output/functions/__server.func/_libs/electric-sql__pglite.mjs:114:16) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Study 2026\\UAE\\Branch1-main\\Branch1-main\\.vercel\\output\\functions\\__server.func\\_libs\\pglite.data'
+}
+
+Node.js v24.19.0
