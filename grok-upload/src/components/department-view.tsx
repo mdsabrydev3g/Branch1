@@ -6,12 +6,8 @@ import {
   getDaysInMonth,
   ratio,
   sumBlock,
-<<<<<<< HEAD
   latestDailyValue,
   firstHalfActualFromDaily,
-=======
-  cumAtDay,
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   firstHalfOverrideFor,
   type Dep,
   type SalesGroupId,
@@ -60,23 +56,12 @@ export function DepartmentGroupView({
       const fallback = block[depKey] ? sumBlock(block[depKey]) : { plan: 0, result: 0 };
       const daily = departmentDailyActuals[period]?.[depKey] ?? {};
 
-<<<<<<< HEAD
       const latestVal = latestDailyValue(daily);
       const hasDaily = Object.keys(daily).length > 0;
 
       const depMonthActual = hasDaily ? latestVal : fallback.result;
       const depFirstHalf = hasDaily
         ? firstHalfActualFromDaily(daily)
-=======
-      const hasDaily = Object.keys(daily).length > 0;
-
-      // القراءات تراكمية: محقق الشهر = آخر قراءة، والنصف الأول = آخر قراءة داخل أيام 1-15
-      const depMonthActual = hasDaily
-        ? cumAtDay(daily, getDaysInMonth(period))
-        : fallback.result;
-      const depFirstHalf = hasDaily
-        ? cumAtDay(daily, 15)
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
         : Math.min(depMonthActual, Math.round(depMonthActual * 0.5));
 
       firstHalfSum += depFirstHalf;
@@ -216,11 +201,7 @@ export function DepartmentGroupView({
       <section className="hairline print-surface gradient-border rounded-2xl bg-card/90 p-6 card-hover">
         <div className="mb-3 flex items-center justify-between">
           <div>
-<<<<<<< HEAD
             <h2 className="text-base font-semibold text-foreground">85% milestone</h2>
-=======
-            <h2 className="text-base font-semibold text-foreground">85%</h2>
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
             <p className="text-xs text-subtle">Cumulative actual vs 85% of monthly target</p>
           </div>
           <StatusPill ratio={milestone85Ratio} />

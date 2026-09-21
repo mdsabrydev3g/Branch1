@@ -2,32 +2,20 @@ import { FileDown, Printer } from "lucide-react";
 import {
   DEPS,
   DEP_COPY,
-<<<<<<< HEAD
   calculate80PercentTarget,
-=======
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   calculate85PercentTarget,
   calculateFirstHalfTarget,
   calculateRemaining,
   calculateSecondHalfTarget,
   calculateTrackTarget,
-<<<<<<< HEAD
   firstHalfActualFromDaily,
-=======
-  cumAtDay,
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   firstHalfOverrideFor,
   fitDenseTextClass,
   fitSmallTextClass,
   fitTextClass,
   formatNumber,
   formatPct,
-<<<<<<< HEAD
   latestDailyValue,
-=======
-  getDaysInMonth,
-  getTrackDay,
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   KPIS,
   periodMeta,
   ratio,
@@ -66,13 +54,8 @@ export function ReportsView() {
     (total, dep) => {
       const fallback = sumBlock(block[dep]);
       const daily = departmentDailyActuals[period]?.[dep] ?? {};
-<<<<<<< HEAD
       const latestVal = latestDailyValue(daily);
       const depActual = latestVal > 0 ? latestVal : (Object.keys(daily).length > 0 ? latestVal : fallback.result);
-=======
-      const depActual =
-        Object.keys(daily).length > 0 ? cumAtDay(daily, getTrackDay(period)) : fallback.result;
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
       const depTarget = departmentTargets[period]?.[dep] ?? fallback.plan;
       return {
         plan: total.plan + depTarget,
@@ -97,18 +80,11 @@ export function ReportsView() {
     : DEPS.reduce((sum, dep) => {
         const fallback = sumBlock(block[dep]);
         const daily = departmentDailyActuals[period]?.[dep] ?? {};
-<<<<<<< HEAD
         const latestVal = latestDailyValue(daily);
         const hasDaily = Object.keys(daily).length > 0;
         const depMonthActual = hasDaily ? latestVal : fallback.result;
         const depFirstHalf = hasDaily
           ? firstHalfActualFromDaily(daily)
-=======
-        const hasDaily = Object.keys(daily).length > 0;
-        const depMonthActual = hasDaily ? cumAtDay(daily, getDaysInMonth(period)) : fallback.result;
-        const depFirstHalf = hasDaily
-          ? cumAtDay(daily, 15)
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
           : Math.min(depMonthActual, Math.round(depMonthActual * 0.5));
         return sum + depFirstHalf;
       }, 0);
@@ -168,15 +144,9 @@ export function ReportsView() {
       <section className="hairline print-surface rounded-2xl bg-card/80 p-4 sm:p-5">
         <div className="mb-3 border-b border-border pb-3">
           <h2 className="text-sm font-medium text-foreground">Target progress</h2>
-<<<<<<< HEAD
           <p className="mt-1 text-xs text-subtle">Automatic first-half, second-half and milestone tracking</p>
         </div>
         <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-=======
-          <p className="mt-1 text-xs text-subtle">Automatic first-half and second-half tracking</p>
-        </div>
-        <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
           <HalfSummary
             label="First half"
             target={calculateFirstHalfTarget(totals.plan, period)}
@@ -188,16 +158,12 @@ export function ReportsView() {
             actual={branchSecondHalfActual}
           />
           <HalfSummary
-<<<<<<< HEAD
             label="80% milestone"
             target={calculate80PercentTarget(totals.plan)}
             actual={totals.result}
           />
           <HalfSummary
             label="85% milestone"
-=======
-            label="85%"
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
             target={calculate85PercentTarget(totals.plan)}
             actual={totals.result}
           />
@@ -209,13 +175,8 @@ export function ReportsView() {
         const desk = sumBlock(block[dep]);
         const daily = departmentDailyActuals[period]?.[dep] ?? {};
         const deskTarget = departmentTargets[period]?.[dep] ?? desk.plan;
-<<<<<<< HEAD
         const latestVal = latestDailyValue(daily);
         const deskActual = latestVal > 0 ? latestVal : (Object.keys(daily).length > 0 ? latestVal : desk.result);
-=======
-        const deskActual =
-          Object.keys(daily).length > 0 ? cumAtDay(daily, getTrackDay(period)) : desk.result;
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
         const track = calculateTrackTarget(deskTarget, period);
         const trackRatio = ratio({ plan: track, result: deskActual });
         return (
@@ -228,10 +189,7 @@ export function ReportsView() {
                 <h2 className="text-sm font-medium text-foreground">
                   {DEP_COPY[dep].title}
                 </h2>
-<<<<<<< HEAD
                 <p className="text-xs text-subtle">{DEP_COPY[dep].blurb}</p>
-=======
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm tabular-nums text-muted">
@@ -270,11 +228,7 @@ export function ReportsView() {
             // Actual = آخر قراءة تراكمية مُدخلة في الشهر (وليس مجموع القراءات —
             // القراءات تراكمية أصلاً وجمعها يضخم الرقم) مع رجوع لآخر قيمة محفوظة
             const daily = branchDailyActuals[period]?.[kpi];
-<<<<<<< HEAD
             const latestKpiVal = latestDailyValue(daily);
-=======
-            const latestKpiVal = cumAtDay(daily, getTrackDay(period));
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
             const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
             const enteredPlan = branchKpis[kpi]?.plan ?? 0;
             // Gross: عند عدم إدخاله يعادل إجمالي الأقسام تلقائياً (مثل صفحة Overview)
@@ -284,7 +238,6 @@ export function ReportsView() {
             const r = ratio({ plan: target, result: actual });
             return (
               <article key={kpi} className="rounded-xl border border-border bg-card-2/70 p-3">
-<<<<<<< HEAD
                 <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
                   <h3 className="text-sm font-medium text-foreground">{kpi}</h3>
                   <StatusPill ratio={r} report />
@@ -297,24 +250,6 @@ export function ReportsView() {
                 <div className="mt-3">
                   <ProgressBar value={r} />
                   <div className="mt-1 text-right font-mono text-xs text-muted">{formatPct(r)}</div>
-=======
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-medium text-foreground">{kpi}</h3>
-                  <div className="flex items-center gap-2">
-                    <span className={cn("shrink-0 font-mono text-xs font-semibold", TONE_TEXT[statusOf(r).tone])}>
-                      {formatPct(r)}
-                    </span>
-                    <StatusPill ratio={r} report />
-                  </div>
-                </div>
-                <div className="mt-2 grid min-w-0 grid-cols-3 gap-1.5">
-                  <ProgressMetric label="Target" value={formatNumber(target)} />
-                  <ProgressMetric label="Actual" value={formatNumber(actual)} />
-                  <ProgressMetric label="Remaining" value={formatNumber(calculateRemaining(target, actual))} />
-                </div>
-                <div className="mt-2.5">
-                  <ProgressBar value={r} />
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                 </div>
               </article>
             );
@@ -421,13 +356,8 @@ function downloadCsv(
     const fallback = sumBlock(block[dep]);
     const target = departmentTargets[period]?.[dep] ?? fallback.plan;
     const daily = departmentDailyActuals[period]?.[dep] ?? {};
-<<<<<<< HEAD
     const latestVal = latestDailyValue(daily);
     const actual = latestVal > 0 ? latestVal : (Object.keys(daily).length > 0 ? latestVal : fallback.result);
-=======
-    const actual =
-      Object.keys(daily).length > 0 ? cumAtDay(daily, getTrackDay(period)) : fallback.result;
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
     const departmentRatio = ratio({ plan: target, result: actual });
     branchPlanSum += target;
     branchActualSum += actual;
@@ -436,11 +366,7 @@ function downloadCsv(
   for (const kpi of KPIS) {
     const isGross = kpi === "Gross";
     const enteredPlan = branchKpis[kpi]?.plan ?? 0;
-<<<<<<< HEAD
     const latestKpiVal = latestDailyValue(branchDailyActuals[period]?.[kpi]);
-=======
-    const latestKpiVal = cumAtDay(branchDailyActuals[period]?.[kpi], getTrackDay(period));
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
     const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
     const target = isGross && enteredPlan === 0 ? branchPlanSum : enteredPlan;
     const actual = isGross && enteredActual === 0 ? branchActualSum : enteredActual;
