@@ -1,28 +1,8 @@
-<<<<<<< HEAD
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-=======
 import { useState, useEffect, useRef, useCallback } from "react";
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
 import {
   formatNumber,
   formatPct,
   getDaysInMonth,
-<<<<<<< HEAD
-  getTrackDay,
-  localDateString,
-  ratio,
-  DEPS,
-  KPIS,
-  DEP_COPY,
-  statusOf,
-  type Kpi,
-  type Dep,
-  type PeriodId,
-} from "@/lib/domain";
-import { usePerfStore } from "@/lib/store";
-import { Button } from "@/components/ui/button";
-import { StatusPill } from "@/components/status-pill";
-=======
   localDateString,
   DEPS,
   KPIS,
@@ -32,25 +12,15 @@ import { StatusPill } from "@/components/status-pill";
 } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
 import { cn } from "@/lib/utils";
 import {
   Calendar,
   Save,
   RefreshCw,
-<<<<<<< HEAD
-  Target,
-  TrendingUp,
-=======
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   Layers,
   BarChart3,
   CheckCircle2,
   Lock,
-<<<<<<< HEAD
-} from "lucide-react";
-
-=======
   Pencil,
   X,
   Calculator,
@@ -63,7 +33,6 @@ import {
  * في صفحات الأقسام TV-AC / MDA-SDA / Mobile في خانة Daily).
  * الحقول مقفولة افتراضياً — زر "تعديل" يفتحها ثم "حفظ" يثبّت التغييرات.
  */
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
 export function DailyEditor() {
   const role = usePerfStore((s) => s.role);
   const setRole = usePerfStore((s) => s.setRole);
@@ -79,19 +48,12 @@ export function DailyEditor() {
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-<<<<<<< HEAD
-  // الافتراضي هو تاريخ اليوم: الإدخال اليومي يُحفظ تحت تاريخ اليوم، وتغيير
-  // Entry Date يجلب المدخلات التي أُدخلت فعلياً في ذلك اليوم
-  const [editingDate, setEditingDate] = useState<string>(() => localDateString());
-
-=======
   // الافتراضي هو تاريخ اليوم: الإدخال يُحفظ تحت التاريخ المختار من خانة التاريخ
   const [editingDate, setEditingDate] = useState<string>(() => localDateString());
 
   // وضع التعديل: الحقول مقفولة حتى الضغط على "تعديل"، والحفظ يغلقها من جديد
   const [editMode, setEditMode] = useState(false);
 
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   const [depActualDrafts, setDepActualDrafts] = useState<Record<string, string>>({});
   const [depTargetDrafts, setDepTargetDrafts] = useState<Record<string, string>>({});
   const [kpiActualDrafts, setKpiActualDrafts] = useState<Record<string, string>>({});
@@ -104,10 +66,6 @@ export function DailyEditor() {
   const hydrated = usePerfStore((s) => s.hydrated);
 
   const daysInMonth = getDaysInMonth(period);
-<<<<<<< HEAD
-  const trackDay = getTrackDay(period, editingDate);
-=======
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
 
   const initDrafts = useCallback(() => {
     const periodDepDaily = departmentDailyActuals[period] ?? {};
@@ -127,10 +85,6 @@ export function DailyEditor() {
     const newKpiActuals: Record<string, string> = {};
     const newKpiTargets: Record<string, string> = {};
     KPIS.forEach((kpi) => {
-<<<<<<< HEAD
-      // عرض ما أُدخل فعلياً في هذا اليوم فقط — بلا رجوع لآخر قيمة تراكمية
-=======
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
       const actualVal = periodKpiDaily[kpi]?.[editingDate];
       newKpiActuals[kpi] = actualVal !== undefined && actualVal > 0 ? String(actualVal) : "";
       const targetVal = periodKpiTargets[kpi] ?? branchKpis[kpi]?.plan;
@@ -151,16 +105,10 @@ export function DailyEditor() {
     branchKpis,
   ]);
 
-<<<<<<< HEAD
-  // تغيير الشهر أو تاريخ الإدخال: إعادة تهيئة قسرية للخانات
-  useEffect(() => {
-    dirtyRef.current = false;
-=======
   // تغيير الشهر أو تاريخ الإدخال: إعادة تهيئة قسرية للخانات + قفل التعديل
   useEffect(() => {
     dirtyRef.current = false;
     setEditMode(false);
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
     initDrafts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, editingDate]);
@@ -171,8 +119,6 @@ export function DailyEditor() {
     initDrafts();
   }, [initDrafts, hydrated]);
 
-<<<<<<< HEAD
-=======
   const startEdit = () => {
     dirtyRef.current = false;
     initDrafts();
@@ -185,7 +131,6 @@ export function DailyEditor() {
     setEditMode(false);
   };
 
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   const handleSaveAll = async () => {
     if (role !== "manager") return;
     setSaveStatus("saving");
@@ -195,11 +140,7 @@ export function DailyEditor() {
       const depTargets: Partial<Record<Dep, number>> = {};
       DEPS.forEach((dep) => {
         // الخانة الفارغة تعني "بدون تغيير" — لا نكتب صفراً فوق المحقق المحفوظ
-<<<<<<< HEAD
-        const actStr = depActualActualValue(dep);
-=======
         const actStr = depActualDrafts[dep] ?? "";
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
         if (actStr.trim() !== "") {
           depActuals[dep] = parseFloat(actStr) || 0;
         }
@@ -212,12 +153,7 @@ export function DailyEditor() {
       const kpiActuals: Partial<Record<Kpi, number>> = {};
       const kpiTargets: Partial<Record<Kpi, number>> = {};
       KPIS.forEach((kpi) => {
-<<<<<<< HEAD
-        // الخانة الفارغة تعني "بدون تغيير" — لا نكتب صفراً فوق المحقق المحفوظ
-        const actStr = kpiActualActualValue(kpi);
-=======
         const actStr = kpiActualDrafts[kpi] ?? "";
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
         if (actStr.trim() !== "") {
           kpiActuals[kpi] = parseFloat(actStr) || 0;
         }
@@ -237,10 +173,7 @@ export function DailyEditor() {
       });
 
       dirtyRef.current = false;
-<<<<<<< HEAD
-=======
       setEditMode(false);
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch {
@@ -249,15 +182,6 @@ export function DailyEditor() {
     }
   };
 
-<<<<<<< HEAD
-  const depActualActualValue = (dep: Dep): string => {
-    return depActualDrafts[dep] ?? "";
-  };
-
-  const kpiActualActualValue = (kpi: Kpi): string => {
-    return kpiActualDrafts[kpi] ?? "";
-  };
-=======
   /** مبيعات اليوم = القراءة في الخانة (أو المحفوظة) − آخر قراءة قبل ذلك التاريخ */
   const daySalesFor = useCallback(
     (key: string, isDep: boolean): number | null => {
@@ -280,7 +204,6 @@ export function DailyEditor() {
     },
     [period, editingDate, departmentDailyActuals, branchDailyActuals, depActualDrafts, kpiActualDrafts],
   );
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
 
   // If not logged in as manager, show login screen
   if (role !== "manager") {
@@ -326,13 +249,10 @@ export function DailyEditor() {
     );
   }
 
-<<<<<<< HEAD
-=======
   // خانة Actual: بدون إطار/خلفية — نفس شكل خانة Daily (نص محاذي في المنتصف)
   const fieldCls =
     "h-10 w-16 min-w-0 bg-transparent px-1 text-center font-mono text-2xs font-bold tabular-nums text-foreground outline-none focus:text-primary sm:w-32 sm:px-3 sm:text-xs disabled:opacity-100 disabled:cursor-default [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-2 sm:px-4 fade-in">
       {/* Top Banner & Date Selector */}
@@ -345,16 +265,8 @@ export function DailyEditor() {
             <span className="text-xs text-subtle">Period: {period}</span>
           </div>
           <h1 className="mt-1 text-2xl font-bold text-foreground">
-<<<<<<< HEAD
-            Daily Cumulative Sales Editor
-          </h1>
-          <p className="text-xs text-subtle">
-            Enter the cumulative sales achieved up to the selected date (المحقق التراكمي حتى الأمس).
-          </p>
-=======
             Daily Sales Editor
           </h1>
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -369,35 +281,6 @@ export function DailyEditor() {
             />
           </div>
 
-<<<<<<< HEAD
-          <Button
-            onClick={handleSaveAll}
-            disabled={saveStatus === "saving"}
-            className={cn(
-              "flex items-center gap-2 px-5 py-2.5 shadow-lg",
-              saveStatus === "saved"
-                ? "bg-success text-success-foreground"
-                : "bg-primary text-primary-foreground",
-            )}
-          >
-            {saveStatus === "saving" ? (
-              <>
-                <RefreshCw className="size-4 animate-spin" />
-                Saving to Cloud...
-              </>
-            ) : saveStatus === "saved" ? (
-              <>
-                <CheckCircle2 className="size-4" />
-                Saved & Synced!
-              </>
-            ) : (
-              <>
-                <Save className="size-4" />
-                Save & Sync All
-              </>
-            )}
-          </Button>
-=======
           {editMode ? (
             <>
               <Button
@@ -446,7 +329,6 @@ export function DailyEditor() {
               Edit
             </Button>
           )}
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
         </div>
       </div>
 
@@ -484,19 +366,6 @@ export function DailyEditor() {
       {activeTab === "deps" && (
         <section className="rounded-2xl border border-border bg-card/80 overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-<<<<<<< HEAD
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                Department Cumulative Performance
-              </h2>
-              <p className="text-xs text-subtle">
-                Enter cumulative actual sales for each department up to {editingDate}
-              </p>
-            </div>
-            <div className="text-xs text-subtle">
-              Track Day: <span className="font-semibold text-foreground">{trackDay}</span> of{" "}
-              {daysInMonth} days
-=======
             <h2 className="text-sm font-semibold text-foreground">
               Department Daily Performance
             </h2>
@@ -506,25 +375,10 @@ export function DailyEditor() {
                 {Number(editingDate.slice(-2)) || 1}
               </span>{" "}
               of {daysInMonth} days
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
             </div>
           </div>
 
           <div className="overflow-x-auto">
-<<<<<<< HEAD
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-border bg-card-2/40 text-2xs uppercase tracking-wider text-subtle">
-                  <th className="px-4 py-3 font-semibold">Department</th>
-                  <th className="px-3 py-3 font-semibold">Monthly Target</th>
-                  <th className="px-3 py-3 font-semibold">Daily Target</th>
-                  <th className="px-3 py-3 font-semibold">Track (حتى الأمس)</th>
-                  <th className="px-3 py-3 font-semibold text-primary">
-                    Actual
-                  </th>
-                  <th className="px-3 py-3 font-semibold text-right">Achievement %</th>
-                  <th className="px-4 py-3 font-semibold text-right">Status</th>
-=======
             <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr className="border-b border-border bg-card-2/40 text-2xs uppercase tracking-wider text-subtle">
@@ -539,52 +393,11 @@ export function DailyEditor() {
                     </span>
                   </th>
                   <th className="px-1 py-2 text-center font-semibold sm:px-3 sm:py-3">%</th>
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-sm">
                 {DEPS.map((dep) => {
                   const targetVal = parseFloat(depTargetDrafts[dep] || "0") || 0;
-<<<<<<< HEAD
-                  const actualVal = parseFloat(depActualDrafts[dep] || "0") || 0;
-                  const dailyTarget = targetVal > 0 ? targetVal / daysInMonth : 0;
-                  const trackTarget = dailyTarget * trackDay;
-                  const achievementRatio = trackTarget > 0 ? actualVal / trackTarget : 0;
-
-                  return (
-                    <tr key={dep} className="hover:bg-card-2/30 transition-colors">
-                      <td className="px-4 py-3 font-medium text-foreground">
-                        <div className="font-semibold">{dep}</div>
-                        <div className="text-2xs text-subtle">{DEP_COPY[dep]?.blurb}</div>
-                      </td>
-
-                      {/* Monthly Target Input */}
-                      <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          value={depTargetDrafts[dep] ?? ""}
-                          onChange={(e) => {
-                            dirtyRef.current = true;
-                            setDepTargetDrafts((prev) => ({ ...prev, [dep]: e.target.value }));
-                          }}
-                          placeholder="0"
-                          className="h-9 w-28 rounded-lg border border-border bg-navy px-2.5 font-mono text-xs text-foreground outline-none focus:border-primary"
-                        />
-                      </td>
-
-                      {/* Daily Target (Calculated) */}
-                      <td className="px-3 py-3 font-mono text-xs text-subtle">
-                        {formatNumber(dailyTarget)}
-                      </td>
-
-                      {/* Track Target (Calculated) */}
-                      <td className="px-3 py-3 font-mono text-xs text-muted">
-                        {formatNumber(trackTarget)}
-                      </td>
-
-                      {/* Cumulative Actual Input */}
-                      <td className="px-3 py-3">
-=======
                   const dailyTarget = targetVal > 0 ? targetVal / daysInMonth : 0;
                   const daySales = daySalesFor(dep, true);
                   // % = مبيعات اليوم المختار ÷ التارجيت اليومي للقسم
@@ -599,7 +412,6 @@ export function DailyEditor() {
 
                       {/* Actual Input */}
                       <td className="px-0.5 py-2 text-center sm:px-3 sm:py-3">
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                         <input
                           type="number"
                           value={depActualDrafts[dep] ?? ""}
@@ -608,14 +420,6 @@ export function DailyEditor() {
                             setDepActualDrafts((prev) => ({ ...prev, [dep]: e.target.value }));
                           }}
                           placeholder="0"
-<<<<<<< HEAD
-                          className="h-10 w-32 rounded-lg border-2 border-primary/50 bg-navy px-3 font-mono text-sm font-semibold text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                        />
-                      </td>
-
-                      {/* Achievement Ratio */}
-                      <td className="px-3 py-3 text-right font-mono text-xs font-semibold">
-=======
                           disabled={!editMode}
                           className={fieldCls}
                         />
@@ -628,7 +432,6 @@ export function DailyEditor() {
 
                       {/* Achievement Ratio */}
                       <td className="px-1 py-2 text-center font-mono text-2xs font-semibold tabular-nums sm:px-3 sm:py-3 sm:text-xs">
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                         <span
                           className={cn(
                             achievementRatio >= 1
@@ -641,14 +444,6 @@ export function DailyEditor() {
                           {formatPct(achievementRatio)}
                         </span>
                       </td>
-<<<<<<< HEAD
-
-                      {/* Status */}
-                      <td className="px-4 py-3 text-right">
-                        <StatusPill ratio={achievementRatio} />
-                      </td>
-=======
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                     </tr>
                   );
                 })}
@@ -662,19 +457,6 @@ export function DailyEditor() {
       {activeTab === "kpis" && (
         <section className="rounded-2xl border border-border bg-card/80 overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-<<<<<<< HEAD
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                Main KPIs Cumulative Performance
-              </h2>
-              <p className="text-xs text-subtle">
-                Enter cumulative actuals for main indicators up to {editingDate}
-              </p>
-            </div>
-            <div className="text-xs text-subtle">
-              Track Day: <span className="font-semibold text-foreground">{trackDay}</span> of{" "}
-              {daysInMonth} days
-=======
             <h2 className="text-sm font-semibold text-foreground">
               Main KPIs Daily Performance
             </h2>
@@ -684,24 +466,10 @@ export function DailyEditor() {
                 {Number(editingDate.slice(-2)) || 1}
               </span>{" "}
               of {daysInMonth} days
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
             </div>
           </div>
 
           <div className="overflow-x-auto">
-<<<<<<< HEAD
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-border bg-card-2/40 text-2xs uppercase tracking-wider text-subtle">
-                  <th className="px-4 py-3 font-semibold">KPI</th>
-                  <th className="px-3 py-3 font-semibold">Target (Plan)</th>
-                  <th className="px-3 py-3 font-semibold">Track (حتى الأمس)</th>
-                  <th className="px-3 py-3 font-semibold text-primary">
-                    Actual
-                  </th>
-                  <th className="px-3 py-3 font-semibold text-right">Achievement %</th>
-                  <th className="px-4 py-3 font-semibold text-right">Status</th>
-=======
             <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr className="border-b border-border bg-card-2/40 text-2xs uppercase tracking-wider text-subtle">
@@ -716,25 +484,11 @@ export function DailyEditor() {
                     </span>
                   </th>
                   <th className="px-1 py-2 text-center font-semibold sm:px-3 sm:py-3">%</th>
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-sm">
                 {KPIS.map((kpi) => {
                   const targetVal = parseFloat(kpiTargetDrafts[kpi] || "0") || 0;
-<<<<<<< HEAD
-                  const actualVal = parseFloat(kpiActualDrafts[kpi] || "0") || 0;
-                  // CR معدل تحويل (%): النسبة على الشهر كامل = المحقق ÷ المستهدف مباشرة
-                  const isRateKpi = kpi === "CR";
-                  const dailyTarget = targetVal > 0 ? targetVal / daysInMonth : 0;
-                  const trackTarget = isRateKpi ? 0 : dailyTarget * trackDay;
-                  const achievementRatio = isRateKpi
-                    ? targetVal > 0
-                      ? actualVal / targetVal
-                      : 0
-                    : trackTarget > 0
-                      ? actualVal / trackTarget
-=======
                   // CR معدل تحويل (%): قيمة شهرية — النسبة = المحقق ÷ المستهدف مباشرة
                   const isRateKpi = kpi === "CR";
                   const dailyTarget = targetVal > 0 ? targetVal / daysInMonth : 0;
@@ -746,45 +500,16 @@ export function DailyEditor() {
                       : 0
                     : daySales !== null && daySales !== undefined && dailyTarget > 0
                       ? daySales / dailyTarget
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                       : 0;
 
                   return (
                     <tr key={kpi} className="hover:bg-card-2/30 transition-colors">
-<<<<<<< HEAD
-                      <td className="px-4 py-3 font-medium text-foreground">
-                        <div className="font-semibold">{kpi}</div>
-                      </td>
-
-                      {/* Target Input */}
-                      <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          value={kpiTargetDrafts[kpi] ?? ""}
-                          onChange={(e) => {
-                            dirtyRef.current = true;
-                            setKpiTargetDrafts((prev) => ({ ...prev, [kpi]: e.target.value }));
-                          }}
-                          placeholder="0"
-                          className="h-9 w-28 rounded-lg border border-border bg-navy px-2.5 font-mono text-xs text-foreground outline-none focus:border-primary"
-                        />
-                      </td>
-
-                      {/* Track Target */}
-                      <td className="px-3 py-3 font-mono text-xs text-muted">
-                        {isRateKpi ? "—" : formatNumber(trackTarget)}
-                      </td>
-
-                      {/* Cumulative Actual Input */}
-                      <td className="px-3 py-3">
-=======
                       <td className="px-1 py-2 text-center font-medium text-foreground sm:px-4 sm:py-3">
                         <div className="font-semibold">{kpi}</div>
                       </td>
 
                       {/* Actual Input */}
                       <td className="px-0.5 py-2 text-center sm:px-3 sm:py-3">
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                         <input
                           type="number"
                           value={kpiActualDrafts[kpi] ?? ""}
@@ -793,14 +518,6 @@ export function DailyEditor() {
                             setKpiActualDrafts((prev) => ({ ...prev, [kpi]: e.target.value }));
                           }}
                           placeholder="0"
-<<<<<<< HEAD
-                          className="h-10 w-32 rounded-lg border-2 border-primary/50 bg-navy px-3 font-mono text-sm font-semibold text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                        />
-                      </td>
-
-                      {/* Achievement Ratio */}
-                      <td className="px-3 py-3 text-right font-mono text-xs font-semibold">
-=======
                           disabled={!editMode}
                           className={fieldCls}
                         />
@@ -813,7 +530,6 @@ export function DailyEditor() {
 
                       {/* Achievement Ratio */}
                       <td className="px-1 py-2 text-center font-mono text-2xs font-semibold tabular-nums sm:px-3 sm:py-3 sm:text-xs">
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                         <span
                           className={cn(
                             achievementRatio >= 1
@@ -826,14 +542,6 @@ export function DailyEditor() {
                           {formatPct(achievementRatio)}
                         </span>
                       </td>
-<<<<<<< HEAD
-
-                      {/* Status */}
-                      <td className="px-4 py-3 text-right">
-                        <StatusPill ratio={achievementRatio} />
-                      </td>
-=======
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
                     </tr>
                   );
                 })}
@@ -843,40 +551,6 @@ export function DailyEditor() {
         </section>
       )}
 
-<<<<<<< HEAD
-      {/* Bottom Save Bar for easy access */}
-      <div className="flex items-center justify-between rounded-2xl border border-border bg-card-2/60 p-4">
-        <span className="text-xs text-subtle">
-          Clicking save will instantly persist data to the cloud database and sync with all employees.
-        </span>
-        <Button
-          onClick={handleSaveAll}
-          disabled={saveStatus === "saving"}
-          className="flex items-center gap-2 px-6"
-        >
-          {saveStatus === "saving" ? (
-            <>
-              <RefreshCw className="size-4 animate-spin" />
-              Saving...
-            </>
-          ) : saveStatus === "saved" ? (
-            <>
-              <CheckCircle2 className="size-4" />
-              Saved & Synced!
-            </>
-          ) : (
-            <>
-              <Save className="size-4" />
-              Save Changes
-            </>
-          )}
-        </Button>
-      </div>
     </div>
   );
 }
-=======
-    </div>
-  );
-}
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)

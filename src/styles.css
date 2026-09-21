@@ -117,12 +117,8 @@
   }
 
   .brand-mark {
-    background: linear-gradient(
-      145deg,
-      var(--color-primary) 0%,
-      var(--color-card-3) 100%
-    );
-    color: var(--color-primary-foreground);
+    background: linear-gradient(145deg, #6b9eff 0%, #4a7fe0 100%);
+    color: #ffffff;
   }
 
   .glow-effect {

@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import {
-<<<<<<< HEAD
-=======
   Calendar,
   ChevronDown,
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   FileBarChart,
   Layers,
   LayoutGrid,
@@ -18,13 +15,9 @@ import { PERIODS, VIEW_DEP, type ViewId } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Overview } from "@/components/overview";
-<<<<<<< HEAD
-import { DepartmentGroupView } from "@/components/department-view";
-=======
 import { TvAcView } from "@/components/tv-ac-view";
 import { MdaSdaView } from "@/components/mda-sda-view";
 import { MobileGroupView } from "@/components/mobile-view";
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
 import { ReportsView } from "@/components/reports-view";
 import { DailyEditor } from "@/components/daily-editor";
 import { cn } from "@/lib/utils";
@@ -78,33 +71,9 @@ export function Shell() {
         <Topbar />
         <main className="flex-1 px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-10">
           {view === "overview" && <Overview />}
-<<<<<<< HEAD
-          {view === "tv" && (
-            <DepartmentGroupView
-              title="TV + AC"
-              deps={["TV", "AC"]}
-              groupId="tv-ac"
-            />
-          )}
-          {view === "mda" && (
-            <DepartmentGroupView
-              title="MDA + SDA"
-              deps={["MDA", "SDA"]}
-              groupId="mda-sda"
-            />
-          )}
-          {view === "mobile" && (
-            <DepartmentGroupView
-              title="Mobile"
-              deps={["IT Laptop", "IT Other", "Telecom Mobile", "Telecom ACC"]}
-              groupId="mobile"
-            />
-          )}
-=======
           {view === "tv" && <TvAcView />}
           {view === "mda" && <MdaSdaView />}
           {view === "mobile" && <MobileGroupView />}
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
           {view === "daily" && <DailyEditor />}
           {view === "reports" && <ReportsView />}
         </main>
@@ -114,19 +83,6 @@ export function Shell() {
   );
 }
 
-<<<<<<< HEAD
-function Brand() {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="brand-mark grid size-9 place-items-center rounded-lg font-sans text-sm font-semibold">
-        F1
-      </div>
-      <div className="min-w-0">
-        <div className="truncate text-sm font-semibold text-foreground">
-          Fayoum 1
-        </div>
-      </div>
-=======
 function Brand({ showText = true }: { showText?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
@@ -142,7 +98,6 @@ function Brand({ showText = true }: { showText?: boolean }) {
           </div>
         </div>
       )}
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
     </div>
   );
 }
@@ -205,22 +160,11 @@ function Topbar() {
   const today = format(new Date(), "EEE d MMM yyyy");
 
   return (
-<<<<<<< HEAD
-    <header className="print-hidden sticky top-0 z-30 flex flex-col gap-3 border-b border-border bg-navy px-4 py-3 pt-safe sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-      <div className="flex items-center justify-between gap-3 lg:hidden">
-        <Brand />
-        <span className="text-xs text-subtle">{today}</span>
-      </div>
-      <div className="hidden text-xs text-subtle lg:block">{today}</div>
-      <div className="flex w-full items-center gap-2 lg:w-auto lg:justify-end">
-        <div className="inline-flex">
-=======
     <header className="print-hidden sticky top-0 z-30 border-b border-border bg-navy px-3 py-2 pt-safe sm:px-6 lg:px-8">
       <div className="flex min-h-11 items-center justify-between gap-2">
         <Brand showText={false} />
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="hidden text-xs text-subtle sm:inline">{today}</span>
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
           <button
             type="button"
             onClick={() => {
@@ -233,43 +177,12 @@ function Topbar() {
               }
             }}
             className={cn(
-<<<<<<< HEAD
-              "pressable rounded-lg px-3 py-2 text-xs font-medium",
-=======
               "pressable h-8 rounded-lg px-2.5 text-xs font-medium sm:px-3",
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
               role === "manager"
                 ? "bg-primary text-primary-foreground"
                 : "bg-card text-muted",
             )}
           >
-<<<<<<< HEAD
-            {role === "manager" ? "Exit Manager Mode" : "Manager"}
-          </button>
-        </div>
-        <select
-          value={period}
-          onChange={(e) => setPeriod(e.target.value as any)}
-          className="h-11 min-w-[120px] appearance-none rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground outline-none focus:border-primary"
-        >
-          {PERIODS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        {(view === "overview" || view === "reports") && (
-          <Button
-            variant="outline"
-            size="icon"
-            className="hidden shrink-0 sm:inline-flex"
-            aria-label="Print"
-            onClick={() => window.print()}
-          >
-            <Printer />
-          </Button>
-        )}
-=======
             {role === "manager" ? "Exit Manager" : "Manager"}
           </button>
           <div className="relative flex items-center">
@@ -305,7 +218,6 @@ function Topbar() {
             </Button>
           )}
         </div>
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
       </div>
       {managerOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">

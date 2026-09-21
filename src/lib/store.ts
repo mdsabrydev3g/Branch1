@@ -19,7 +19,9 @@ import { saveKpiCell } from "@/lib/performance-api";
 import { loadDashboardState, saveDashboardState } from "@/lib/dashboard-api";
 
 const STORAGE_KEY = "fayoum-pcc-v2";
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 7;
+/** المفاتيح القديمة التي تمت إعادة تسميتها → الاسم الجديد (ترحيل البيانات المحفوظة) */
+const RENAMED_KPIS: Record<string, string> = { Vature: "Voucher", Voucher: "Gift" };
 
 type Field = keyof Entry;
 export type SaveState = "idle" | "saving" | "saved" | "error";
@@ -154,7 +156,35 @@ function readSaved(): {
       branchKpiTargets?: BranchKpiTargets;
       version?: number;
     };
-    if (!parsed.data || !parsed.period || parsed.version !== STORAGE_VERSION) return null;
+    if (!parsed.data || !parsed.period || parsed.version === undefined) return null;
+
+    // ترحيل الأسماء القديمة (مؤشرات: Vature → Voucher → Gift)
+    // (أقسام: IT Laptop → Laptop، IT Other → Other، Telecom Mobile → Mobile، Telecom ACC → ACC)
+    if (parsed.version < STORAGE_VERSION) {
+      const changed = migrateNames(parsed);
+
+      // اكتب الترحيل فورًا حتى لا تظل النسخة القديمة على القرص
+      if (changed > 0) {
+        try {
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              version: STORAGE_VERSION,
+              period: parsed.period,
+              data: parsed.data,
+              dailyActuals: parsed.dailyActuals ?? {},
+              branchDailyActuals: parsed.branchDailyActuals ?? {},
+              departmentDailyActuals: parsed.departmentDailyActuals ?? {},
+              departmentTargets: parsed.departmentTargets ?? {},
+              branchKpiTargets: parsed.branchKpiTargets ?? {},
+            }),
+          );
+        } catch {
+          /* الترحيل في الذاكرة يكفي */
+        }
+      }
+    }
+
     return {
       period: parsed.period,
       data: parsed.data,
@@ -167,6 +197,89 @@ function readSaved(): {
   } catch {
     return null;
   }
+}
+
+/**
+ * ترحيل أسماء المؤشرات (Vature → Voucher → Gift) على أي كتلة بيانات
+ * قادمة من السيرفر أو localStorage. تُطبّع في مكانه وتُرجع كمية التعديلات.
+ */
+const RENAMED_DEPS: Record<string, string> = {
+  "IT Laptop": "Laptop",
+  "IT Other": "Other",
+  "Telecom Mobile": "Mobile",
+  "Telecom ACC": "ACC",
+};
+
+function migrateNames(shared: {
+  data?: PerformanceData;
+  branchKpiTargets?: BranchKpiTargets;
+  branchDailyActuals?: BranchDailyActuals;
+  dailyActuals?: DailyActuals;
+  departmentDailyActuals?: DepartmentDailyActuals;
+  departmentTargets?: DepartmentTargets;
+}): number {
+  let changed = 0;
+  const applyToMap = (map: Record<string, unknown> | undefined, renames: Record<string, string>) => {
+    if (!map) return;
+    for (const [oldKey, newKey] of Object.entries(renames)) {
+      if (oldKey in map && !(newKey in map)) {
+        map[newKey] = map[oldKey];
+        delete map[oldKey];
+        changed++;
+      } else if (oldKey in map && newKey in map) {
+        delete map[oldKey];
+        changed++;
+      }
+    }
+  };
+  const applyKpis = (map: Record<string, unknown> | undefined) => applyToMap(map, RENAMED_KPIS);
+  const applyDeps = (map: Record<string, unknown> | undefined) => applyToMap(map, RENAMED_DEPS);
+
+  if (shared.data) {
+    // مفاتيح الأقسام في data تتغير، ثم مفاتيح المؤشرات داخل كل قسم
+    for (const period of Object.keys(shared.data)) {
+      const block = shared.data[period as PeriodId];
+      if (!block) continue;
+      applyDeps(block as Record<string, unknown>);
+      for (const dep of Object.keys(block)) {
+        const dept = block[dep as keyof typeof block] as Record<string, Entry> | undefined;
+        if (!dept) continue;
+        applyKpis(dept);
+      }
+    }
+  }
+  if (shared.branchKpiTargets) {
+    for (const period of Object.keys(shared.branchKpiTargets)) {
+      applyKpis(shared.branchKpiTargets[period as PeriodId]);
+    }
+  }
+  if (shared.branchDailyActuals) {
+    for (const period of Object.keys(shared.branchDailyActuals)) {
+      applyKpis(shared.branchDailyActuals[period as PeriodId]);
+    }
+  }
+  if (shared.dailyActuals) {
+    for (const period of Object.keys(shared.dailyActuals)) {
+      const block = shared.dailyActuals[period as PeriodId];
+      if (!block) continue;
+      applyDeps(block as Record<string, unknown>);
+      for (const dep of Object.keys(block)) {
+        const dept = block[dep as keyof typeof block] as Record<string, unknown> | undefined;
+        if (dept) applyKpis(dept);
+      }
+    }
+  }
+  if (shared.departmentDailyActuals) {
+    for (const period of Object.keys(shared.departmentDailyActuals)) {
+      applyDeps(shared.departmentDailyActuals[period as PeriodId]);
+    }
+  }
+  if (shared.departmentTargets) {
+    for (const period of Object.keys(shared.departmentTargets)) {
+      applyDeps(shared.departmentTargets[period as PeriodId]);
+    }
+  }
+  return changed;
 }
 
 function queueSave(
@@ -534,6 +647,8 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     const currentRole = get().role;
     try {
       const shared = await loadDashboardState();
+      // السيرفر قد يحمل أسماء قديمة (مؤشرات أو أقسام) — رحّلها قبل الاستخدام
+      migrateNames(shared);
       set({
         ...shared,
         branchKpiTargets: shared.branchKpiTargets ?? {},

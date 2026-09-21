@@ -111,14 +111,11 @@ function main(argv) {
     process.exit(2);
   }
   const env = mergeAppEnv(readAppEnv(projectRoot()), process.env);
-<<<<<<< HEAD
-=======
   // In dev the PGLite fallback persists to disk, so entered data survives a
   // dev-server restart. Production runs on Neon, so this never ships.
   if (command.includes("vite") && args.includes("dev")) {
     env.VITE_PGLITE_DIR ??= join(projectRoot(), ".pglite-data");
   }
->>>>>>> d524201 (Fayoum 1 branch performance dashboard)
   const child = spawn(command, args, {
     stdio: "inherit",
     env,

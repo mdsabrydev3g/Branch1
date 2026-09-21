@@ -5,23 +5,31 @@ export const KPIS = [
   "Mylo",
   "CR",
   "GK",
+  "Gift",
 ] as const;
 
 export type Kpi = (typeof KPIS)[number];
 
 export const FIXED_KPI_TARGETS: Partial<Record<Kpi, number>> = {
   CR: 20,
+  GK: 400,
 };
+
+/** مؤشرات تُعرض ككروت مصغّرة بجانب دائرة الفرع في صفحة Overview (تُحذف من جدول الـ KPI) */
+export const BRANCH_MINI_KPIS: Kpi[] = ["CR", "GK", "Gift"];
+
+/** مؤشرات جدول Main KPI performance (بدون كروت الدائرة) */
+export const TABLE_KPIS: Kpi[] = ["Gross", "Agency", "BOXI", "Mylo"];
 
 export const DEPS = [
   "TV",
   "AC",
   "MDA",
   "SDA",
-  "IT Laptop",
-  "IT Other",
-  "Telecom Mobile",
-  "Telecom ACC",
+  "Laptop",
+  "Other",
+  "Mobile",
+  "ACC",
 ] as const;
 export type Dep = (typeof DEPS)[number];
 
@@ -60,7 +68,7 @@ export const SALES_GROUPS = [
   {
     id: "mobile",
     title: "Mobile",
-    deps: ["IT Laptop", "IT Other", "Telecom Mobile", "Telecom ACC"] as Dep[],
+    deps: ["Laptop", "Other", "Mobile", "ACC"] as Dep[],
   },
   { id: "mda-sda", title: "MDA + SDA", deps: ["MDA", "SDA"] as Dep[] },
   { id: "tv-ac", title: "TV + AC", deps: ["TV", "AC"] as Dep[] },
@@ -110,12 +118,12 @@ export const DEP_OWNERS: Record<
   SDA: [
     { name: "يحيى", initials: "ي" },
   ],
-  "IT Laptop": [
+  "Laptop": [
     { name: "ماركو", initials: "م" },
   ],
-  "IT Other": [],
-  "Telecom Mobile": [],
-  "Telecom ACC": [],
+  "Other": [],
+  "Mobile": [],
+  "ACC": [],
 };
 
 export const LEAD_KPIS: Kpi[] = ["Gross"];
@@ -132,7 +140,7 @@ export const KPI_ROWS = REST_KPI_ROWS;
 export const VIEW_DEP: Record<Exclude<ViewId, "overview" | "reports" | "daily">, Dep> = {
   tv: "TV",
   mda: "MDA",
-  mobile: "IT Laptop",
+  mobile: "Laptop",
 };
 
 export const DEP_VIEW: Record<Dep, Exclude<ViewId, "overview" | "reports">> = {
@@ -140,45 +148,21 @@ export const DEP_VIEW: Record<Dep, Exclude<ViewId, "overview" | "reports">> = {
   AC: "tv",
   MDA: "mda",
   SDA: "mda",
-  "IT Laptop": "mobile",
-  "IT Other": "mobile",
-  "Telecom Mobile": "mobile",
-  "Telecom ACC": "mobile",
+  "Laptop": "mobile",
+  "Other": "mobile",
+  "Mobile": "mobile",
+  "ACC": "mobile",
 };
 
-export const DEP_COPY: Record<Dep, { title: string; blurb: string }> = {
-  TV: {
-    title: "TV",
-    blurb: "Television desk",
-  },
-  AC: {
-    title: "AC",
-    blurb: "Air-conditioning desk",
-  },
-  MDA: {
-    title: "MDA",
-    blurb: "Major domestic appliances",
-  },
-  SDA: {
-    title: "SDA",
-    blurb: "Small domestic appliances",
-  },
-  "IT Laptop": {
-    title: "IT Laptop",
-    blurb: "Laptops and related",
-  },
-  "IT Other": {
-    title: "IT Other",
-    blurb: "IT accessories",
-  },
-  "Telecom Mobile": {
-    title: "Telecom Mobile",
-    blurb: "Mobile handsets and plans",
-  },
-  "Telecom ACC": {
-    title: "Telecom ACC",
-    blurb: "Mobile accessories",
-  },
+export const DEP_COPY: Record<Dep, { title: string }> = {
+  TV: { title: "TV" },
+  AC: { title: "AC" },
+  MDA: { title: "MDA" },
+  SDA: { title: "SDA" },
+  "Laptop": { title: "Laptop" },
+  "Other": { title: "Other" },
+  "Mobile": { title: "Mobile" },
+  "ACC": { title: "ACC" },
 };
 
 export const DEP_SHORT: Record<Dep, string> = {
@@ -186,10 +170,10 @@ export const DEP_SHORT: Record<Dep, string> = {
   AC: "AC",
   MDA: "MDA",
   SDA: "SDA",
-  "IT Laptop": "Laptop",
-  "IT Other": "IT",
-  "Telecom Mobile": "Mobile",
-  "Telecom ACC": "ACC",
+  "Laptop": "Laptop",
+  "Other": "Other",
+  "Mobile": "Mobile",
+  "ACC": "ACC",
 };
 
 export const KPI_HINT: Record<Kpi, string> = {
@@ -199,6 +183,7 @@ export const KPI_HINT: Record<Kpi, string> = {
   CR: "In-branch invoice conversion rate",
   Mylo: "Installment sales",
   GK: "Large deal leads",
+  Gift: "Gift sales",
 };
 
 function seedDept(base: number): DeptBlock {
@@ -209,6 +194,7 @@ function seedDept(base: number): DeptBlock {
     Mylo: { plan: 48, result: 40 },
     CR: { plan: 100, result: 88 },
     GK: { plan: 14, result: 11 },
+    Gift: { plan: 20, result: 16 },
   };
 }
 
@@ -217,10 +203,10 @@ const SEPTEMBER: PeriodBlock = {
   AC: seedDept(520000),
   MDA: seedDept(305000),
   SDA: seedDept(305000),
-  "IT Laptop": seedDept(415000),
-  "IT Other": seedDept(415000),
-  "Telecom Mobile": seedDept(415000),
-  "Telecom ACC": seedDept(415000),
+  "Laptop": seedDept(415000),
+  "Other": seedDept(415000),
+  "Mobile": seedDept(415000),
+  "ACC": seedDept(415000),
 };
 
 const HISTORY: { id: PeriodId; plan: number; result: number }[] = [
@@ -384,6 +370,50 @@ export function latestDailyValue(daily: Record<string, number> | undefined): num
   const dates = Object.keys(daily).sort();
   if (!dates.length) return 0;
   return Number(daily[dates[dates.length - 1]]) || 0;
+}
+
+/**
+ * الإدخال في Daily Editor = قراءة تراكمية (المحقق من بداية الشهر حتى التاريخ).
+ * المحقق التراكمي حتى يوم maxDay = آخر قراءة مُدخلة بتاريخ ≤ ذلك اليوم.
+ */
+export function cumAtDay(
+  daily: Record<string, number> | undefined,
+  maxDay: number,
+): number {
+  return latestDailyValueUpToDay(daily, maxDay);
+}
+
+/**
+ * مبيعات اليوم المختار = قراءة اليوم التراكمية − آخر قراءة تراكمية قبلها.
+ * (المستخدم يدخل المحقق التراكمي يومياً، والفرق بين يومين = محقق اليوم نفسه)
+ */
+export function dailyDiffAt(
+  daily: Record<string, number> | undefined,
+  date: string,
+): number {
+  if (!daily || !(date in daily)) return 0;
+  const cur = Number(daily[date]) || 0;
+  const prevDates = Object.keys(daily)
+    .filter((d) => d < date)
+    .sort();
+  const prev = prevDates.length ? Number(daily[prevDates[prevDates.length - 1]]) || 0 : 0;
+  return Math.max(0, cur - prev);
+}
+
+/**
+ * مجموع إدخالات المحقق اليومي من بداية الشهر حتى maxDay (شاملاً).
+ * الإدخال في Daily Editor = مبيعات اليوم فقط، والتجميع (Cumulative) يُحسب هنا.
+ */
+export function sumDailyUpToDay(
+  daily: Record<string, number> | undefined,
+  maxDay: number,
+): number {
+  if (!daily) return 0;
+  let sum = 0;
+  for (const [date, value] of Object.entries(daily)) {
+    if (Number(date.slice(-2)) <= maxDay) sum += Number(value) || 0;
+  }
+  return sum;
 }
 
 export function latestDailyValueUpToDay(
