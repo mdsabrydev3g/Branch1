@@ -109,7 +109,7 @@ function Sidebar() {
   return (
     <aside className="print-hidden sticky top-0 hidden h-dvh flex-col border-r border-border bg-navy/70 px-3 py-5 lg:flex">
       <div className="px-2 pb-6">
-        <Brand />
+        <Brand showText={false} />
       </div>
       <p className="px-3 pb-2 text-2xs font-semibold tracking-kicker text-subtle uppercase">
         Workspace
