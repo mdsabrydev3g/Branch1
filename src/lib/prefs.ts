@@ -22,8 +22,8 @@ const LANG_KEY = "f1-lang";
 export const dictionaries: Record<Lang, Record<string, string>> = {
   en: {
     "nav.overview": "Overview",
-    "nav.tv-ac": "TV — AC",
-    "nav.mda-sda": "MDA - SDA",
+    "nav.tv-ac": "TV-AC",
+    "nav.mda-sda": "MDA-SDA",
     "nav.mobile": "Mobile",
     "nav.daily": "Daily Editor",
     "nav.reports": "Reports",
@@ -58,8 +58,19 @@ function readStored<T extends string>(key: string, allowed: T[], fallback: T): T
   return fallback;
 }
 
+/**
+ * Initial theme must match what the no-flash bootstrap script in `__root.tsx`
+ * already wrote to `<html data-theme>` — read the same key so the store, the
+ * CSS variables, and the logo swap all agree from the first render.
+ * (Client-only: this module is imported by components, never by SSR loaders.)
+ */
+const initialTheme: Theme =
+  typeof localStorage !== "undefined"
+    ? readStored<Theme>(THEME_KEY, ["dark", "light"], "dark")
+    : "dark";
+
 export const usePrefs = create<PrefsState>((set, get) => ({
-  theme: "dark",
+  theme: initialTheme,
   lang: "en",
   setTheme: (theme) => {
     try {

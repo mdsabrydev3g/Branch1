@@ -147,8 +147,12 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
+  /* Additive, not a replacement: a bare `env(safe-area-inset-top)` resolves to
+     0 on plain desktop browsers and would wipe the element's base top padding,
+     pinning header content to the top edge. The `max()` keeps at least the base
+     rhythm while still honouring notches/rounded display corners. */
   .pt-safe {
-    padding-top: env(safe-area-inset-top);
+    padding-top: max(0.5rem, env(safe-area-inset-top));
   }
 
   .app-shell {
@@ -221,6 +225,17 @@
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     opacity: 0.6;
+  }
+
+  /* نسختا لوجو (وأيقونة) الهيدر موجودتان في الـ HTML معاً وCSS يُظهر نسخة
+     واحدة فقط حسب الثيم: الأسود في النهاري والأبيض في الليلي. لا Hydration
+     mismatch لأن الثيم يُقرأ من localStorage على العميل فقط، ويُطبَّق قبل أول
+     رسم عبر السكربت المضمّن في `__root.tsx`. */
+  html[data-theme="light"] .theme-art-dark {
+    display: none;
+  }
+  html:not([data-theme="light"]) .theme-art-light {
+    display: none;
   }
 }
 

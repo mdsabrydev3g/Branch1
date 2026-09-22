@@ -10,6 +10,7 @@ import {
   type PerformanceData,
   type PeriodId,
 } from "@/lib/domain";
+import { requireAdmin } from "@/lib/auth/roles.server";
 
 const periodIds = PERIODS.map((p) => p.id) as [PeriodId, ...PeriodId[]];
 const deps = [...DEPS] as [Dep, ...Dep[]];
@@ -92,6 +93,7 @@ export const loadKpis = createServerFn({ method: "GET" }).handler(async () => {
 export const saveKpiCell = createServerFn({ method: "POST" })
   .validator(cellInput)
   .handler(async ({ data }) => {
+    await requireAdmin();
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     await sql`

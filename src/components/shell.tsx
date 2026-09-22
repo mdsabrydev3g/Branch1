@@ -23,6 +23,8 @@ import { MdaSdaView } from "@/components/mda-sda-view";
 import { MobileGroupView } from "@/components/mobile-view";
 import { ReportsView } from "@/components/reports-view";
 import { DailyEditor } from "@/components/daily-editor";
+import { AdminAuthDialog } from "@/components/admin-auth-dialog";
+import { adminLogout } from "@/lib/auth/admin-api";
 import { cn } from "@/lib/utils";
 
 const NAV: {
@@ -32,8 +34,8 @@ const NAV: {
   icon: typeof LayoutGrid;
 }[] = [
   { id: "overview", label: "Overview", short: "Home", icon: LayoutGrid },
-  { id: "tv", label: "TV — AC", short: "TV·AC", icon: Tv },
-  { id: "mda", label: "MDA - SDA", short: "MDA·SDA", icon: Layers },
+  { id: "tv", label: "TV-AC", short: "TV-AC", icon: Tv },
+  { id: "mda", label: "MDA-SDA", short: "MDA-SDA", icon: Layers },
   { id: "mobile", label: "Mobile", short: "Mobile", icon: Smartphone },
   { id: "daily", label: "Daily Editor", short: "Daily", icon: Edit },
   { id: "reports", label: "Reports", short: "Report", icon: FileBarChart },
@@ -42,9 +44,12 @@ const NAV: {
 export function Shell() {
   const view = usePerfStore((s) => s.view);
   const hydrate = usePerfStore((s) => s.hydrate);
+  const syncRole = usePerfStore((s) => s.syncRole);
 
   useEffect(() => {
     hydrate();
+    // دور الجلسة يأتي من السيرفر فقط — لا يُخزَّن ولا يُخمن محلياً
+    void syncRole();
 
     // Auto-polling every 15s to keep all employee screens synchronized in real-time
     const interval = setInterval(() => {
@@ -65,7 +70,7 @@ export function Shell() {
       window.removeEventListener("focus", onSync);
       document.removeEventListener("visibilitychange", onSync);
     };
-  }, [hydrate]);
+  }, [hydrate, syncRole]);
 
   return (
     <div className="app-shell">
@@ -87,12 +92,26 @@ export function Shell() {
 }
 
 function Brand({ showText = true }: { showText?: boolean }) {
+  // اللوجو العريض: الأسود في الوضع النهاري والأبيض في الوضع الليلي. النسختان
+  // مولَّدتان من نفس ملف اللوجو باللون فقط (`scripts/recolor-f1-wide.py`)،
+  // وموجودتان في الـ HTML معاً و`.theme-art-*` (styles.css) يُظهر واحدة فقط —
+  // فلا Hydration mismatch لأن الثيم يُقرأ من localStorage على العميل وحده.
   return (
     <div className="flex items-center gap-2.5">
       <img
-        src="/f1.png"
+        src="/f1-wide-black.png"
         alt="F1"
-        className="h-8 w-auto shrink-0 object-contain sm:h-9"
+        width={721}
+        height={316}
+        className="theme-art-light h-8 w-auto shrink-0 object-contain sm:h-9"
+      />
+      <img
+        src="/f1-wide-white.png"
+        alt=""
+        aria-hidden="true"
+        width={721}
+        height={316}
+        className="theme-art-dark h-8 w-auto shrink-0 object-contain sm:h-9"
       />
       {showText && (
         <div className="min-w-0">
@@ -156,47 +175,44 @@ function Topbar() {
   const setPeriod = usePerfStore((s) => s.setPeriod);
   const view = usePerfStore((s) => s.view);
   const role = usePerfStore((s) => s.role);
-  const setRole = usePerfStore((s) => s.setRole);
-  const theme = usePrefs((s) => s.theme);
+  const exitManager = usePerfStore((s) => s.exitManager);
   const toggleTheme = usePrefs((s) => s.toggleTheme);
   const [managerOpen, setManagerOpen] = useState(false);
-  const [password, setPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
   const today = format(new Date(), "EEE d MMM yyyy");
   usePrefsEffect();
 
+  // الهيدر نفسه `flex items-center` مع حشو رأسي متساوٍ (`pt-safe` يضيف مساحة
+  // النوتش فوقه فقط) — فيقع كل عنصر على خط المنتصف نفسه في كل المقاسات.
   return (
-    <header className="print-hidden sticky top-0 z-30 border-b border-border bg-navy px-3 py-2 pt-safe sm:px-6 lg:px-8">
-      <div className="flex min-h-11 items-center justify-between gap-2">
+    <header className="print-hidden sticky top-0 z-30 flex items-center border-b border-border bg-navy px-3 py-2 pt-safe sm:px-6 lg:px-8">
+      <div className="flex min-h-11 w-full items-center justify-between gap-2">
         <Brand showText={false} />
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="hidden text-xs text-subtle sm:inline">{today}</span>
+          {/* الأيقونتان معاً في الـ DOM وCSS يُظهر واحدة حسب الثيم — فالتمركز لا
+              يعتمد على JS ولا ينتج Hydration mismatch (الثيم على العميل فقط). */}
           <button
             type="button"
             onClick={toggleTheme}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="pressable grid size-9 place-items-center rounded-lg border border-border bg-card text-muted hover:border-primary/50 hover:text-foreground sm:size-8"
+            aria-label="Toggle light or dark mode"
+            title="Toggle light or dark mode"
+            className="pressable grid size-9 place-items-center rounded-lg border border-border bg-card text-muted hover:border-primary/50 hover:text-foreground"
           >
-            {theme === "dark" ? (
-              <Sun className="size-4" strokeWidth={2} aria-hidden />
-            ) : (
-              <Moon className="size-4" strokeWidth={2} aria-hidden />
-            )}
+            <Sun className="theme-art-dark size-4" strokeWidth={2} aria-hidden />
+            <Moon className="theme-art-light size-4" strokeWidth={2} aria-hidden />
           </button>
           <button
             type="button"
             onClick={() => {
               if (role === "manager") {
-                setRole("staff");
+                exitManager();
+                void adminLogout().catch(() => {});
               } else {
-                setPassword("");
-                setPasswordError("");
                 setManagerOpen(true);
               }
             }}
             className={cn(
-              "pressable h-9 rounded-lg px-2.5 text-xs font-medium sm:h-8 sm:px-3",
+              "pressable h-9 rounded-lg px-2.5 text-xs font-medium sm:px-3",
               role === "manager"
                 ? "bg-primary text-primary-foreground"
                 : "bg-card text-muted",
@@ -213,7 +229,7 @@ function Topbar() {
               value={period}
               onChange={(e) => setPeriod(e.target.value as any)}
               aria-label="Select month"
-              className="h-9 w-[122px] min-w-0 appearance-none rounded-lg border border-primary/50 bg-card py-0 pl-8 pr-7 text-xs font-semibold text-foreground shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 sm:h-8 sm:w-[120px]"
+              className="h-9 w-[122px] min-w-0 appearance-none rounded-lg border border-primary/50 bg-card py-0 pl-8 pr-7 text-xs font-semibold text-foreground shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 sm:w-[120px]"
             >
               {PERIODS.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -230,7 +246,7 @@ function Topbar() {
             <Button
               variant="outline"
               size="icon"
-              className="hidden h-8 w-8 shrink-0 sm:inline-flex"
+              className="hidden h-9 w-9 shrink-0 sm:inline-flex"
               aria-label="Print"
               onClick={() => window.print()}
             >
@@ -240,41 +256,7 @@ function Topbar() {
         </div>
       </div>
       {managerOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
-          <form
-            className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (password !== "Fay1") {
-                setPasswordError("Incorrect password");
-                return;
-              }
-              setRole("manager");
-              setManagerOpen(false);
-              setPassword("");
-            }}
-          >
-            <h2 className="text-lg font-semibold text-foreground">Manager access</h2>
-            <p className="mt-1 text-sm text-muted">Enter the manager password to edit targets and actuals.</p>
-            <input
-              autoFocus
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-4 h-11 w-full rounded-lg border border-border bg-navy px-3 text-foreground outline-none focus:border-primary"
-              placeholder="Password"
-            />
-            {passwordError && <p className="mt-2 text-sm text-red-400">{passwordError}</p>}
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="rounded-lg px-3 py-2 text-sm text-muted" onClick={() => setManagerOpen(false)}>
-                Cancel
-              </button>
-              <button type="submit" className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
-                Continue
-              </button>
-            </div>
-          </form>
-        </div>
+        <AdminAuthDialog open={managerOpen} onClose={() => setManagerOpen(false)} />
       )}
     </header>
   );

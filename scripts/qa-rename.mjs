@@ -54,7 +54,7 @@ await page.getByRole("button", { name: "Daily Editor" }).click();
 await page.waitForTimeout(1500);
 const unlock = page.locator("main").getByRole("button", { name: "Unlock Editor" });
 if (await unlock.isVisible({ timeout: 3000 }).catch(() => false)) {
-  await page.locator("main input[type='password']").fill("Fay1");
+  await page.locator("main input[type='password']").fill((process.env.ADMIN_PASSWORD ?? ""));
   await unlock.click();
   await page.waitForTimeout(800);
 }

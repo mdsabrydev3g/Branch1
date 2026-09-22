@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -145,7 +145,16 @@ function authPopupPlugin(): Plugin {
 // `0.0.0.0:8080` is the live-preview contract — don't change host/port.
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
-export default defineConfig(({ command, isPreview }) => ({
+export default defineConfig(({ command, isPreview, mode }) => {
+  // Server-side env (ADMIN_PASSWORD etc.) — Vite only auto-loads .env files in
+  // `loadEnv` results that are consumed, so merge the non-VITE vars into
+  // process.env here for SSR/dev. Production injects them directly.
+  const envFiles = loadEnv(mode, process.cwd(), "");
+  for (const [key, value] of Object.entries(envFiles)) {
+    if (key.startsWith("VITE_")) continue; // client vars flow through Vite normally
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+  return {
   server: {
     host: "0.0.0.0",
     port: 8080,
@@ -180,4 +189,5 @@ export default defineConfig(({ command, isPreview }) => ({
       : []),
     viteReact(),
   ],
-}));
+  };
+});

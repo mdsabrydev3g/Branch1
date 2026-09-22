@@ -190,7 +190,7 @@ export function DailyEditor() {
             className="mt-6"
             onSubmit={(e) => {
               e.preventDefault();
-              if (password !== "Fay1") {
+              if (!password) {
                 setPasswordError("Incorrect password");
                 return;
               }

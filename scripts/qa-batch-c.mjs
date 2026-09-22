@@ -13,7 +13,7 @@
 import { chromium } from "playwright";
 
 const BASE = "http://localhost:8080";
-const PASSWORD = "Fay1";
+const PASSWORD = (process.env.ADMIN_PASSWORD ?? "");
 
 const failures = [];
 const checks = [];
@@ -87,9 +87,10 @@ async function main() {
   // ── اللوجو ──────────────────────────────────────
   console.log("\n→ Header logo");
   {
-    const logo = page.locator("header img[src*='f1.png'], aside img[src*='f1.png']").first();
-    const count = await page.locator("img[src*='f1.png']").count();
-    check("اللوجو: صورة f1.png موجودة", count >= 1, `found ${count}`);
+    // الواجهة تحمل نسختَي اللوجو (نهاري/ليلي) وCSS يُظهر واحدة فقط — نختار الظاهرة.
+    const logo = page.locator("header img[src*='f1']:visible, aside img[src*='f1']:visible").first();
+    const count = await page.locator("img[src*='f1']").count();
+    check("اللوجو: صورة F1 موجودة", count >= 1, `found ${count}`);
     if (count > 0) {
       const box = await logo.boundingBox();
       check("اللوجو: أبعاد معقولة (ارتفاع 28–48px)", !!box && box.height >= 28 && box.height <= 48, `h=${box && Math.round(box.height)}`);
@@ -287,7 +288,7 @@ async function main() {
     check("Mobile: لا اسكرول أفقي", await mpage.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
 
     // اللوجو على الموبايل (السايدبار مخفي — خذ لوجو الـtopbar فقط)
-    const mlogo = await mpage.locator("header img[src*='f1.png']").first().boundingBox();
+    const mlogo = await mpage.locator("header img[src*='f1']:visible").first().boundingBox();
     check("Mobile: اللوجو مناسب (ارتفاع ≤ 48px)", !!mlogo && mlogo.height <= 48, `h=${mlogo && Math.round(mlogo.height)}`);
     check("Mobile: اللوجو لا يسبب overflow", !!mlogo && mlogo.x + mlogo.width <= 390, `right=${mlogo && Math.round(mlogo.x + mlogo.width)}`);
 

@@ -10,7 +10,7 @@
 import { chromium } from "playwright";
 
 const BASE = "http://localhost:8080";
-const PASSWORD = "Fay1";
+const PASSWORD = (process.env.ADMIN_PASSWORD ?? "");
 
 const BANNED = [
   "Monthly Target",

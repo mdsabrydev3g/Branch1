@@ -12,7 +12,7 @@ await page.goto("http://localhost:8080", { waitUntil: "networkidle" });
 await page.waitForTimeout(1200);
 await page.getByRole("button", { name: "Daily Editor", exact: true }).click();
 await page.waitForTimeout(500);
-await page.getByPlaceholder("Password").fill("Fay1");
+await page.getByPlaceholder("Password").fill((process.env.ADMIN_PASSWORD ?? ""));
 await page.getByRole("button", { name: "Unlock Editor" }).click();
 await page.waitForTimeout(1000);
 

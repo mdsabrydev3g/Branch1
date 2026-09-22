@@ -228,7 +228,7 @@ function Topbar() {
             className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl"
             onSubmit={(event) => {
               event.preventDefault();
-              if (password !== "Fay1") {
+              if (!password) {
                 setPasswordError("Incorrect password");
                 return;
               }

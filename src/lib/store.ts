@@ -17,6 +17,7 @@ import {
 } from "@/lib/domain";
 import { saveKpiCell } from "@/lib/performance-api";
 import { loadDashboardState, saveDashboardState } from "@/lib/dashboard-api";
+import { getAdminSession } from "@/lib/auth/admin-api";
 
 const STORAGE_KEY = "fayoum-pcc-v2";
 const STORAGE_VERSION = 7;
@@ -42,6 +43,9 @@ interface PerfState {
   saveState: SaveState;
   role: Role;
   setRole: (r: Role) => void;
+  /** يثبّت الدور من جلسة السيرفر — المصدر الوحيد للصلاحية. */
+  syncRole: () => Promise<void>;
+  exitManager: () => void;
   setView: (view: ViewId) => void;
   setPeriod: (period: PeriodId) => void;
   setValue: (dep: Dep, kpi: Kpi, field: Field, value: number) => void;
@@ -325,6 +329,20 @@ export const usePerfStore = create<PerfState>((set, get) => ({
   saveState: "idle",
   role: "staff",
   setRole: (r) => set({ role: r }),
+  /**
+   * يثبّت الدور من السيرفر فقط — كوكي جلسة Admin الموقّعة (HttpOnly). دور
+   * الواجهة مجرد تلميح للمظهر؛ كل عملية كتابة تتحقق من الصلاحية على السيرفر
+   * مرة أخرى عبر requireAdmin، فتغيير هذه الحالة محليًا لا يمنح أي صلاحية.
+   */
+  syncRole: async () => {
+    try {
+      const res = await getAdminSession();
+      set({ role: res.isAdmin ? "manager" : "staff" });
+    } catch {
+      set({ role: "staff" });
+    }
+  },
+  exitManager: () => set({ role: "staff" }),
   setView: (view) => set({ view }),
   setPeriod: (period) => {
     markSaved();

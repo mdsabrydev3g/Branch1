@@ -59,7 +59,7 @@ async function unlockManager(page) {
   await gotoNav(page, "Daily Editor");
   const pw = page.locator('input[type="password"]').first();
   if (await pw.count()) {
-    await pw.fill("Fay1");
+    await pw.fill((process.env.ADMIN_PASSWORD ?? ""));
     await page.locator('button:has-text("Unlock Editor")').click();
     await page.waitForTimeout(600);
   }

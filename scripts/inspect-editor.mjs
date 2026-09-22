@@ -6,7 +6,7 @@ await page.goto("http://localhost:8080", { waitUntil: "domcontentloaded" });
 await page.waitForTimeout(1200);
 await page.locator("header").getByRole("button", { name: /Manager/i }).first().click();
 await page.waitForTimeout(400);
-await page.locator("input[type='password']").fill("Fay1");
+await page.locator("input[type='password']").fill((process.env.ADMIN_PASSWORD ?? ""));
 await page.getByRole("button", { name: "Continue" }).click();
 await page.waitForTimeout(600);
 await page.getByRole("button", { name: "Daily Editor" }).click();

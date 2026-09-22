@@ -6,7 +6,7 @@ import type { Dep } from "@/lib/domain";
 
 /**
  * لوحة مجموعة مبيعات بمستويات: الإجمالي أولاً (الأبرز) ثم كل قسم لوحده.
- * تُستخدم لـ TV — AC و MDA - SDA. للعرض فقط — الإدخال من Daily Editor.
+ * تُستخدم لـ TV-AC و MDA-SDA. للعرض فقط — الإدخال من Daily Editor.
  */
 export function GroupLevelsDashboard({
   pageLabel,

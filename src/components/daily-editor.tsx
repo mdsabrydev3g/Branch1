@@ -12,6 +12,7 @@ import {
 } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
+import { AdminAuthDialog } from "@/components/admin-auth-dialog";
 import { cn } from "@/lib/utils";
 import {
   Calendar,
@@ -35,7 +36,7 @@ import {
  */
 export function DailyEditor() {
   const role = usePerfStore((s) => s.role);
-  const setRole = usePerfStore((s) => s.setRole);
+  const [managerOpen, setManagerOpen] = useState(false);
   const period = usePerfStore((s) => s.period);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
@@ -45,8 +46,6 @@ export function DailyEditor() {
   const saveBatchDaily = usePerfStore((s) => s.saveBatchDaily);
 
   const [activeTab, setActiveTab] = useState<"deps" | "kpis">("deps");
-  const [password, setPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
 
   // الافتراضي هو تاريخ اليوم: الإدخال يُحفظ تحت التاريخ المختار من خانة التاريخ
   const [editingDate, setEditingDate] = useState<string>(() => localDateString());
@@ -215,35 +214,16 @@ export function DailyEditor() {
           </div>
           <h2 className="text-xl font-bold text-foreground">Manager Access Required</h2>
           <p className="mt-2 text-sm text-subtle">
-            Enter the manager password to edit daily actuals and targets.
+            Enter the Manager Password to edit daily actuals and targets.
           </p>
-          <form
-            className="mt-6"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (password !== "Fay1") {
-                setPasswordError("Incorrect password");
-                return;
-              }
-              setRole("manager");
-              setPassword("");
-              setPasswordError("");
-            }}
+          <Button
+            type="button"
+            className="mt-6 w-full"
+            onClick={() => setManagerOpen(true)}
           >
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="h-11 w-full rounded-lg border border-border bg-navy px-3 text-foreground outline-none focus:border-primary"
-            />
-            {passwordError && (
-              <p className="mt-2 text-sm text-red-400">{passwordError}</p>
-            )}
-            <Button type="submit" className="mt-4 w-full">
-              Unlock Editor
-            </Button>
-          </form>
+            Enter Manager Mode
+          </Button>
+          <AdminAuthDialog open={managerOpen} onClose={() => setManagerOpen(false)} />
         </div>
       </div>
     );
@@ -260,7 +240,7 @@ export function DailyEditor() {
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center rounded-full bg-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              Manager Mode Active
+              Manager Mode ●
             </span>
             <span className="text-xs text-subtle">Period: {period}</span>
           </div>

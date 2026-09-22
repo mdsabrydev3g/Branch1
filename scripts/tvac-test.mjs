@@ -419,10 +419,10 @@ const dstr = (y, m, d) => `${y}-${PAD(m)}-${PAD(d)}`;
     "Daily Editor",
   );
 
-  // فتح شاشة المدير (كلمة السر Fay1) — الوصول لصفحة Daily يتطلب Manager
+  // فتح شاشة المدير (كلمة السر من ADMIN_PASSWORD) — الوصول لصفحة Daily يتطلب Manager
   const needUnlock = await page.evaluate(() => document.body.innerText.includes("Manager Access Required"));
   if (needUnlock) {
-    await page.locator('input[type="password"]').fill("Fay1");
+    await page.locator('input[type="password"]').fill((process.env.ADMIN_PASSWORD ?? ""));
     await page.getByRole("button", { name: "Unlock Editor" }).click();
     await page.waitForTimeout(800);
   }
