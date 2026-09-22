@@ -1,6 +1,11 @@
 node_modules
 *.local
 
+# Server-side secrets — never commit
+.env
+.env.*
+!.env.example
+
 # Local PGLite database (dev-only persistence; production uses Neon)
 .pglite-data/
 
