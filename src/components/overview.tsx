@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import {
   formatNumber,
   cumAtDay,
+  latestDailyValue,
   calculateTrackTarget,
   calculateDailyTarget,
   calculateRemaining,
@@ -46,6 +47,7 @@ export function OverviewView() {
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
   const branchKpiTargets = usePerfStore((s) => s.branchKpiTargets);
   const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
+  const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
 
   const block = data[period] || {};
   const daysInMonth = getDaysInMonth(period);
@@ -87,17 +89,19 @@ export function OverviewView() {
 
     (["Gross", "Agency", "BOXI", "Mylo", "CR", "GK", "Gift"] as Kpi[]).forEach((kpi) => {
       const isRateKpi = kpi === "CR";
-      // Monthly KPI Actual is independent from Daily readings.
-      // Daily data is used only by the Daily page for day-by-day calculations.
       const enteredTarget =
         branchKpiTargets[period]?.[kpi] ??
         FIXED_KPI_TARGETS[kpi] ??
         branchKpisByPeriod[period]?.[kpi]?.plan ??
         0;
-      const enteredActual = branchKpisByPeriod[period]?.[kpi]?.result ?? 0;
+
+      // Main KPI Actual is driven by the corresponding Daily KPI reading.
+      // Use the latest saved cumulative reading for the selected month, including today.
+      // This prevents an old manually-entered monthly result from remaining visible.
+      const dailyKpi = branchDailyActuals[period]?.[kpi] ?? {};
+      const actual = latestDailyValue(dailyKpi);
 
       const target = kpi === "Gross" && enteredTarget === 0 ? totalDepsTarget : enteredTarget;
-      const actual = kpi === "Gross" && enteredActual === 0 ? totalDepsActual : enteredActual;
 
       // CR نسبة شهرية: النسبة = المحقق ÷ المستهدف مباشرة (بدون تقسيم لأنصاف الشهر)
       const track = isRateKpi ? target : calculateTrackTarget(target, period);
@@ -113,7 +117,7 @@ export function OverviewView() {
     });
 
     return result;
-  }, [deptData, period, branchKpiTargets, branchKpisByPeriod]);
+  }, [deptData, period, branchKpiTargets, branchKpisByPeriod, branchDailyActuals]);
 
   // حساب القيم لمجموعات الأقسام
   const groupData = useMemo(() => {
