@@ -268,6 +268,11 @@ function migrateNames(shared: {
       applyKpis(shared.branchKpiTargets[period as PeriodId]);
     }
   }
+  if (shared.branchKpisByPeriod) {
+    for (const period of Object.keys(shared.branchKpisByPeriod)) {
+      applyKpis(shared.branchKpisByPeriod[period as PeriodId]);
+    }
+  }
   if (shared.branchDailyActuals) {
     for (const period of Object.keys(shared.branchDailyActuals)) {
       applyKpis(shared.branchDailyActuals[period as PeriodId]);
@@ -412,6 +417,16 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     const nextByPeriod: BranchKpiDataByPeriod = { ...branchKpisByPeriod, [period]: nextForPeriod };
     markSaved();
     set({ branchKpis: nextForPeriod, branchKpisByPeriod: nextByPeriod });
+    persistLocal(
+      period,
+      get().data,
+      get().dailyActuals,
+      get().branchDailyActuals,
+      get().departmentDailyActuals,
+      get().departmentTargets,
+      get().branchKpiTargets,
+      nextByPeriod,
+    );
     try {
       localStorage.setItem(`${STORAGE_KEY}:branch-kpis`, JSON.stringify(nextForPeriod));
     } catch {
