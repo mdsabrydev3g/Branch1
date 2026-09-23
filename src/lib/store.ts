@@ -511,6 +511,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       get().departmentTargets,
       get().branchKpiTargets,
+      get().branchKpisByPeriod,
     );
     queueSharedSave(get, set);
   },
@@ -594,6 +595,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       next,
       get().departmentTargets,
       get().branchKpiTargets,
+      get().branchKpisByPeriod,
     );
     queueSharedSave(get, set);
   },
@@ -617,6 +619,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       next,
       get().branchKpiTargets,
+      get().branchKpisByPeriod,
     );
     queueSharedSave(get, set);
   },
