@@ -55,9 +55,10 @@ interface PerfState {
   setBranchValue: (kpi: Kpi, field: Field, value: number) => void;
   setDailyActual: (dep: Dep, kpi: Kpi, date: string, value: number) => void;
   setBranchDailyActual: (kpi: Kpi, date: string, value: number) => void;
-  setBranchKpiTarget: (kpi: Kpi, value: number) => void;
+
   setDepartmentDailyActual: (dep: Dep, date: string, value: number) => void;
   setDepartmentTarget: (dep: Dep, value: number) => void;
+  saveMonthlyKpiActuals: (params: { period: PeriodId; actuals: Partial<Record<Kpi, number>> }) => Promise<void>;
   saveBatchDaily: (params: {
     period: PeriodId;
     date: string;
@@ -572,6 +573,38 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     );
     queueSharedSave(get, set);
   },
+  saveMonthlyKpiActuals: async ({ period, actuals }) => {
+    if (get().role === "staff") return;
+    const state = get();
+    const currentKpis = state.branchKpisByPeriod[period] ?? createBranchKpiSeed();
+    const nextKpis = { ...currentKpis };
+    for (const [k, value] of Object.entries(actuals)) {
+      const kpi = k as Kpi;
+      if (nextKpis[kpi]) nextKpis[kpi] = { ...nextKpis[kpi], result: value as number };
+    }
+    const nextByPeriod: BranchKpiDataByPeriod = { ...state.branchKpisByPeriod, [period]: nextKpis };
+    markSaved();
+    set({ branchKpis: nextKpis, branchKpisByPeriod: nextByPeriod });
+    persistLocal(
+      period,
+      state.data,
+      state.dailyActuals,
+      state.branchDailyActuals,
+      state.departmentDailyActuals,
+      state.departmentTargets,
+      state.branchKpiTargets,
+      nextByPeriod,
+    );
+    const saveResult = await saveDashboardState({
+      data: sharedStateFromStore(get()),
+      expectedRevision: sharedRevision,
+    });
+    if (!saveResult.ok) {
+      await applySharedConflict(get, set);
+      throw new Error("Dashboard changed on another device. The latest data was loaded; please review and save again.");
+    }
+    sharedRevision = saveResult.revision;
+  },
   setDepartmentDailyActual: (dep, date, value) => {
     if (get().role === "staff") return;
     const { period, departmentDailyActuals } = get();
@@ -686,7 +719,8 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         }
       : state.branchKpiTargets;
 
-    // 5. Update branchKpis summary
+    // 5. Keep monthly KPI values independent from daily readings.
+    // Daily entries are displayed from branchDailyActuals; monthly actuals are edited separately.
     const currentBranchKpis = state.branchKpisByPeriod[period] ?? createBranchKpiSeed();
     const nextBranchKpis = { ...currentBranchKpis };
     if (kpiTargets) {
@@ -697,13 +731,6 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         }
       });
     }
-    Object.entries(kpiActuals).forEach(([k, val]) => {
-      const kpiKey = k as Kpi;
-      if (nextBranchKpis[kpiKey]) {
-        nextBranchKpis[kpiKey] = { ...nextBranchKpis[kpiKey], result: val as number };
-      }
-    });
-
     const nextBranchKpisByPeriod: BranchKpiDataByPeriod = { ...state.branchKpisByPeriod, [period]: nextBranchKpis };
 
     markSaved();
