@@ -53,7 +53,6 @@ export function DailyEditor() {
   // وضع التعديل: الحقول مقفولة حتى الضغط على "تعديل"، والحفظ يغلقها من جديد
   const [editMode, setEditMode] = useState(false);
   const [monthlyEditMode, setMonthlyEditMode] = useState(false);
-  const [managerOpen, setManagerOpen] = useState(false);
 
   const [depActualDrafts, setDepActualDrafts] = useState<Record<string, string>>({});
   const [depTargetDrafts, setDepTargetDrafts] = useState<Record<string, string>>({});
