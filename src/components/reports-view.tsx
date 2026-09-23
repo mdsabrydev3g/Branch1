@@ -27,6 +27,7 @@ import {
   type DepartmentDailyActuals,
   type DepartmentTargets,
   type BranchKpiDataByPeriod,
+  type BranchDailyActuals,
   type PeriodId,
   type StatusTone,
 } from "@/lib/domain";
@@ -343,6 +344,7 @@ function downloadCsv(
   departmentTargets: DepartmentTargets,
   departmentDailyActuals: DepartmentDailyActuals,
   branchKpisByPeriod: BranchKpiDataByPeriod,
+  branchDailyActuals: BranchDailyActuals,
 ) {
   const lines = [["Section", "Measure", "Target", "Actual", "Progress", "Status"]];
   let branchPlanSum = 0;
@@ -361,10 +363,11 @@ function downloadCsv(
   for (const kpi of KPIS) {
     const isGross = kpi === "Gross";
     const enteredPlan = branchKpisByPeriod[period]?.[kpi]?.plan ?? 0;
-    // Monthly KPI Actual is independent from Daily readings.
-    const enteredActual = branchKpisByPeriod[period]?.[kpi]?.result ?? 0;
+    // Branch KPI Actual is driven by the corresponding Daily KPI reading.
+    const dailyKpi = branchDailyActuals[period]?.[kpi] ?? {};
+    const enteredActual = latestDailyValue(dailyKpi);
     const target = isGross && enteredPlan === 0 ? branchPlanSum : enteredPlan;
-    const actual = isGross && enteredActual === 0 ? branchActualSum : enteredActual;
+    const actual = enteredActual;
     const kpiRatio = ratio({ plan: target, result: actual });
     lines.push(["Branch KPIs", kpi, String(target), String(actual), formatPct(kpiRatio), statusText(kpiRatio)]);
   }
