@@ -189,7 +189,9 @@ export function OverviewView() {
           target: d.target,
           track: d.track,
           actual: d.actual,
-          gap: calculateRemaining(d.track, d.actual),
+          // Gap is relative to Track: if Actual exceeds Track, show the surplus in green.
+          gap: Math.abs(d.actual - d.track),
+          gapPositive: d.actual > d.track,
           pct: d.achievementRatio,
           tone: perfOf(d.actual, d.track).tone,
         };
@@ -202,7 +204,9 @@ export function OverviewView() {
           target: d.target,
           track: d.track,
           actual: d.actual,
-          gap: calculateRemaining(d.track, d.actual),
+          // Same rule for sales groups: surplus over Track is a positive green gap.
+          gap: Math.abs(d.actual - d.track),
+          gapPositive: d.actual > d.track,
           pct: d.achievementRatio,
           tone: perfOf(d.actual, d.target).tone,
         };
@@ -345,7 +349,7 @@ export function OverviewView() {
                 {formatNumber(row.actual)}
               </span>
               <span className={cn("flex w-[12%] shrink-0 justify-center font-mono text-[13px] font-semibold tabular-nums whitespace-nowrap", toneTextClass(row.tone))}>
-                {formatNumber(row.gap)}
+                {row.gapPositive ? `+${formatNumber(row.gap)}` : formatNumber(row.gap)}
               </span>
               {/* دائرة النسبة المئوية — ثابتة في نهاية الصف بالكامل، بنفس الحجم والمحاذاة لكل الصفوف */}
               <span className="flex flex-1 items-center justify-end pl-2">
@@ -377,7 +381,12 @@ export function OverviewView() {
                   <KpiMini label="Target" value={formatNumber(row.target)} />
                   <KpiMini label="Track" value={formatNumber(row.track)} />
                   <KpiMini label="Actual" value={formatNumber(row.actual)} bold />
-                  <KpiMini label="Gap" value={formatNumber(row.gap)} tone={row.tone} bold />
+                  <KpiMini
+                    label="Gap"
+                    value={row.gapPositive ? `+${formatNumber(row.gap)}` : formatNumber(row.gap)}
+                    tone={row.gapPositive ? "good" : row.tone}
+                    bold
+                  />
                 </div>
               </div>
               {/* دائرة النسبة — مستقلة في نهاية الصف بالكامل بنفس الحجم والمحاذاة */}
