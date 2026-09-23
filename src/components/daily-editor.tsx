@@ -42,7 +42,7 @@ export function DailyEditor() {
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
   const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const branchKpiTargets = usePerfStore((s) => s.branchKpiTargets);
-  const branchKpis = usePerfStore((s) => s.branchKpis);
+  const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
   const saveBatchDaily = usePerfStore((s) => s.saveBatchDaily);
 
   const [activeTab, setActiveTab] = useState<"deps" | "kpis">("deps");
@@ -88,7 +88,7 @@ export function DailyEditor() {
     KPIS.forEach((kpi) => {
       const actualVal = periodKpiDaily[kpi]?.[editingDate];
       newKpiActuals[kpi] = actualVal !== undefined && actualVal > 0 ? String(actualVal) : "";
-      const targetVal = periodKpiTargets[kpi] ?? branchKpis[kpi]?.plan;
+      const targetVal = periodKpiTargets[kpi] ?? branchKpisByPeriod[period]?.[kpi]?.plan;
       newKpiTargets[kpi] = targetVal !== undefined && targetVal > 0 ? String(targetVal) : "";
     });
 
