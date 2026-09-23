@@ -604,8 +604,19 @@ export function DailyEditor() {
         onSuccess={() => {
           const action = authAction;
           setAuthAction(null);
-          if (action === "editDaily") startEdit();
-          else if (action === "editMonthlyTarget") startMonthlyTargetEdit();
+
+          // Authentication succeeded. Enter the requested edit mode directly.
+          // Do NOT call startEdit/startMonthlyTargetEdit here because those
+          // functions intentionally open the password dialog.
+          if (action === "editDaily") {
+            dirtyRef.current = false;
+            initDrafts();
+            setEditMode(true);
+          } else if (action === "editMonthlyTarget") {
+            dirtyRef.current = false;
+            initTargetDrafts();
+            setMonthlyTargetEditMode(true);
+          }
         }}
       />
     </div>
