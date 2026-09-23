@@ -202,7 +202,7 @@ export function DailyEditor() {
         // الخانة الفارغة تعني "بدون تغيير" — لا نكتب صفراً فوق المحقق المحفوظ
         const actStr = depActualDrafts[dep] ?? "";
         if (actStr.trim() !== "") {
-          depActuals[dep] = parseFloat(actStr) || 0;
+          depActuals[dep] = parseFloat(actStr.replace(/,/g, "")) || 0;
         }
       });
 
@@ -210,7 +210,7 @@ export function DailyEditor() {
       KPIS.forEach((kpi) => {
         const actStr = kpiActualDrafts[kpi] ?? "";
         if (actStr.trim() !== "") {
-          kpiActuals[kpi] = parseFloat(actStr) || 0;
+          kpiActuals[kpi] = parseFloat(actStr.replace(/,/g, "")) || 0;
         }
       });
 
@@ -305,7 +305,7 @@ export function DailyEditor() {
             <Button onClick={startEdit} className="flex items-center gap-2 px-5 py-2.5 shadow-lg">
               <Pencil className="size-4" />Edit Daily Actual
             </Button>
-          )}          )}
+          )}
         </div>
       </div>
 
@@ -449,17 +449,23 @@ export function DailyEditor() {
 
                       {/* Actual Input */}
                       <td className="px-0.5 py-2 text-center sm:px-3 sm:py-3">
-                        <input
-                          type="number"
-                          value={depActualDrafts[dep] ?? ""}
-                          onChange={(e) => {
-                            dirtyRef.current = true;
-                            setDepActualDrafts((prev) => ({ ...prev, [dep]: e.target.value }));
-                          }}
-                          placeholder="0"
-                          disabled={!editMode}
-                          className={fieldCls}
-                        />
+                        {editMode ? (
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={depActualDrafts[dep] ?? ""}
+                            onChange={(e) => {
+                              dirtyRef.current = true;
+                              setDepActualDrafts((prev) => ({ ...prev, [dep]: e.target.value }));
+                            }}
+                            placeholder="0"
+                            className={fieldCls}
+                          />
+                        ) : (
+                          <span className="font-mono text-2xs font-bold tabular-nums text-foreground sm:text-xs">
+                            {depActualDrafts[dep]?.trim() ? formatNumber(parseFloat(depActualDrafts[dep].replace(/,/g, "")) || 0) : "—"}
+                          </span>
+                        )}
                       </td>
 
                       {/* مبيعات اليوم (تلقائي) */}
@@ -547,17 +553,23 @@ export function DailyEditor() {
 
                       {/* Actual Input */}
                       <td className="px-0.5 py-2 text-center sm:px-3 sm:py-3">
-                        <input
-                          type="number"
-                          value={kpiActualDrafts[kpi] ?? ""}
-                          onChange={(e) => {
-                            dirtyRef.current = true;
-                            setKpiActualDrafts((prev) => ({ ...prev, [kpi]: e.target.value }));
-                          }}
-                          placeholder="0"
-                          disabled={!editMode}
-                          className={fieldCls}
-                        />
+                        {editMode ? (
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={kpiActualDrafts[kpi] ?? ""}
+                            onChange={(e) => {
+                              dirtyRef.current = true;
+                              setKpiActualDrafts((prev) => ({ ...prev, [kpi]: e.target.value }));
+                            }}
+                            placeholder="0"
+                            className={fieldCls}
+                          />
+                        ) : (
+                          <span className="font-mono text-2xs font-bold tabular-nums text-foreground sm:text-xs">
+                            {kpiActualDrafts[kpi]?.trim() ? formatNumber(parseFloat(kpiActualDrafts[kpi].replace(/,/g, "")) || 0) : "—"}
+                          </span>
+                        )}
                       </td>
 
                       {/* مبيعات اليوم (تلقائي) */}
