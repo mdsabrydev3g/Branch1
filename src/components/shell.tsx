@@ -23,8 +23,6 @@ import { MdaSdaView } from "@/components/mda-sda-view";
 import { MobileGroupView } from "@/components/mobile-view";
 import { ReportsView } from "@/components/reports-view";
 import { DailyEditor } from "@/components/daily-editor";
-import { AdminAuthDialog } from "@/components/admin-auth-dialog";
-import { adminLogout } from "@/lib/auth/admin-api";
 import { cn } from "@/lib/utils";
 
 const NAV: {
@@ -174,10 +172,7 @@ function Topbar() {
   const period = usePerfStore((s) => s.period);
   const setPeriod = usePerfStore((s) => s.setPeriod);
   const view = usePerfStore((s) => s.view);
-  const role = usePerfStore((s) => s.role);
-  const exitManager = usePerfStore((s) => s.exitManager);
   const toggleTheme = usePrefs((s) => s.toggleTheme);
-  const [managerOpen, setManagerOpen] = useState(false);
   const today = format(new Date(), "EEE d MMM yyyy");
   usePrefsEffect();
 
@@ -200,25 +195,6 @@ function Topbar() {
           >
             <Sun className="theme-art-dark size-4" strokeWidth={2} aria-hidden />
             <Moon className="theme-art-light size-4" strokeWidth={2} aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (role === "manager") {
-                exitManager();
-                void adminLogout().catch(() => {});
-              } else {
-                setManagerOpen(true);
-              }
-            }}
-            className={cn(
-              "pressable h-9 rounded-lg px-2.5 text-xs font-medium sm:px-3",
-              role === "manager"
-                ? "bg-primary text-primary-foreground"
-                : "bg-card text-muted",
-            )}
-          >
-            {role === "manager" ? "Exit Manager" : "Manager"}
           </button>
           <div className="relative flex items-center">
             <Calendar
@@ -255,9 +231,6 @@ function Topbar() {
           )}
         </div>
       </div>
-      {managerOpen && (
-        <AdminAuthDialog open={managerOpen} onClose={() => setManagerOpen(false)} />
-      )}
     </header>
   );
 }
