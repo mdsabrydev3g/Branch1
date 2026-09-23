@@ -62,6 +62,8 @@ export type ViewId = "overview" | "tv" | "mda" | "mobile" | "daily" | "reports";
 export type Entry = { plan: number; result: number };
 export type DeptBlock = Record<Kpi, Entry>;
 export type BranchKpiData = Record<Kpi, Entry>;
+/** Branch KPI values are isolated by YYYY-MM period. */
+export type BranchKpiDataByPeriod = Partial<Record<PeriodId, BranchKpiData>>;
 export type PeriodBlock = Record<Dep, DeptBlock>;
 export type PerformanceData = Record<PeriodId, PeriodBlock>;
 export type DailyActuals = Partial<Record<
