@@ -316,7 +316,7 @@ export function DailyEditor() {
                 ) : (
                   <>
                     <Save className="size-4" />
-                    حفظ التعديلات
+                    Save and synchronize
                   </>
                 )}
               </Button>
@@ -327,7 +327,7 @@ export function DailyEditor() {
                 className="flex items-center gap-2 px-4 py-2.5"
               >
                 <X className="size-4" />
-                إلغاء
+                Cancel
               </Button>
             </>
           ) : (
