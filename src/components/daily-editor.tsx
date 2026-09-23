@@ -21,7 +21,6 @@ import {
   Layers,
   BarChart3,
   CheckCircle2,
-  Lock,
   Pencil,
   X,
   Calculator,
@@ -44,6 +43,7 @@ export function DailyEditor() {
   const branchKpiTargets = usePerfStore((s) => s.branchKpiTargets);
   const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
   const saveBatchDaily = usePerfStore((s) => s.saveBatchDaily);
+  const saveMonthlyKpiActuals = usePerfStore((s) => s.saveMonthlyKpiActuals);
 
   const [activeTab, setActiveTab] = useState<"deps" | "kpis">("deps");
 
@@ -52,11 +52,14 @@ export function DailyEditor() {
 
   // وضع التعديل: الحقول مقفولة حتى الضغط على "تعديل"، والحفظ يغلقها من جديد
   const [editMode, setEditMode] = useState(false);
+  const [monthlyEditMode, setMonthlyEditMode] = useState(false);
+  const [managerOpen, setManagerOpen] = useState(false);
 
   const [depActualDrafts, setDepActualDrafts] = useState<Record<string, string>>({});
   const [depTargetDrafts, setDepTargetDrafts] = useState<Record<string, string>>({});
   const [kpiActualDrafts, setKpiActualDrafts] = useState<Record<string, string>>({});
   const [kpiTargetDrafts, setKpiTargetDrafts] = useState<Record<string, string>>({});
+  const [monthlyKpiDrafts, setMonthlyKpiDrafts] = useState<Record<string, string>>({});
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -96,6 +99,12 @@ export function DailyEditor() {
     setDepTargetDrafts(newDepTargets);
     setKpiActualDrafts(newKpiActuals);
     setKpiTargetDrafts(newKpiTargets);
+    const monthly: Record<string, string> = {};
+    KPIS.forEach((kpi) => {
+      const value = branchKpisByPeriod[period]?.[kpi]?.result;
+      monthly[kpi] = value !== undefined ? String(value) : "";
+    });
+    setMonthlyKpiDrafts(monthly);
   }, [
     period,
     editingDate,
@@ -134,15 +143,41 @@ export function DailyEditor() {
   }, [initDrafts, hydrated]);
 
   const startEdit = () => {
+    if (role !== "manager") { setManagerOpen(true); return; }
     dirtyRef.current = false;
     initDrafts();
     setEditMode(true);
+  };
+
+  const startAddDaily = () => {
+    if (role !== "manager") { setManagerOpen(true); return; }
+    dirtyRef.current = false;
+    setDepActualDrafts({});
+    setKpiActualDrafts({});
+    setEditMode(true);
+  };
+
+  const startMonthlyEdit = (mode: "add" | "edit") => {
+    if (role !== "manager") { setManagerOpen(true); return; }
+    initDrafts();
+    if (mode === "add") setMonthlyKpiDrafts({});
+    setMonthlyEditMode(true);
   };
 
   const cancelEdit = () => {
     dirtyRef.current = false;
     initDrafts();
     setEditMode(false);
+  };
+
+  const handleSaveMonthly = async () => {
+    if (role !== "manager") return;
+    const actuals: Partial<Record<Kpi, number>> = {};
+    KPIS.forEach((kpi) => {
+      const value = monthlyKpiDrafts[kpi];
+      if (value !== undefined && value.trim() !== "") actuals[kpi] = parseFloat(value) || 0;
+    });
+    try { await saveMonthlyKpiActuals({ period, actuals }); setMonthlyEditMode(false); } catch { /* keep editor open */ }
   };
 
   const handleSaveAll = async () => {
@@ -218,31 +253,6 @@ export function DailyEditor() {
     },
     [period, editingDate, departmentDailyActuals, branchDailyActuals, depActualDrafts, kpiActualDrafts],
   );
-
-  // If not logged in as manager, show login screen
-  if (role !== "manager") {
-    return (
-      <div className="mx-auto max-w-md px-4 py-16">
-        <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-xl">
-          <div className="mx-auto mb-4 grid size-12 place-items-center rounded-xl bg-primary/10 text-primary">
-            <Lock className="size-6" />
-          </div>
-          <h2 className="text-xl font-bold text-foreground">Manager Access Required</h2>
-          <p className="mt-2 text-sm text-subtle">
-            Enter the Manager Password to edit daily actuals and targets.
-          </p>
-          <Button
-            type="button"
-            className="mt-6 w-full"
-            onClick={() => setManagerOpen(true)}
-          >
-            Enter Manager Mode
-          </Button>
-          <AdminAuthDialog open={managerOpen} onClose={() => setManagerOpen(false)} />
-        </div>
-      </div>
-    );
-  }
 
   // خانة Actual: بدون إطار/خلفية — نفس شكل خانة Daily (نص محاذي في المنتصف)
   const fieldCls =
@@ -322,16 +332,57 @@ export function DailyEditor() {
               </Button>
             </>
           ) : (
-            <Button
-              onClick={startEdit}
-              className="flex items-center gap-2 px-5 py-2.5 shadow-lg"
-            >
+            <Button variant="outline" onClick={startAddDaily} className="flex items-center gap-2 px-4 py-2.5">
+              <Save className="size-4" />
+              إضافة محقق يومي
+            </Button>
+            <Button onClick={startEdit} className="flex items-center gap-2 px-5 py-2.5 shadow-lg">
               <Pencil className="size-4" />
-              Edit
+              تعديل المحقق اليومي
             </Button>
           )}
         </div>
       </div>
+
+      <section className="rounded-2xl border border-border bg-card/80 overflow-hidden shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Monthly KPI Actuals</h2>
+            <p className="mt-1 text-xs text-subtle">المحقق الشهري مستقل عن المحقق اليومي ولكل شهر بياناته الخاصة.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {monthlyEditMode ? (
+              <>
+                <Button onClick={handleSaveMonthly} className="flex items-center gap-2"><Save className="size-4" />حفظ المحقق الشهري</Button>
+                <Button variant="outline" onClick={() => { initDrafts(); setMonthlyEditMode(false); }}>إلغاء</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => startMonthlyEdit("add")} className="flex items-center gap-2"><Save className="size-4" />إضافة المحقق الشهري</Button>
+                <Button onClick={() => startMonthlyEdit("edit")} className="flex items-center gap-2"><Pencil className="size-4" />تعديل المحقق الشهري</Button>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead><tr className="border-b border-border bg-card-2/40 text-2xs uppercase tracking-wider text-subtle">
+              <th className="px-3 py-3 text-center font-semibold">KPI</th>
+              <th className="px-3 py-3 text-center font-semibold text-primary">Monthly Actual</th>
+            </tr></thead>
+            <tbody className="divide-y divide-border">
+              {KPIS.map((kpi) => (
+                <tr key={kpi}>
+                  <td className="px-3 py-3 text-center font-semibold text-foreground">{kpi}</td>
+                  <td className="px-3 py-3 text-center">
+                    <input type="number" value={monthlyKpiDrafts[kpi] ?? ""} onChange={(e) => setMonthlyKpiDrafts((prev) => ({ ...prev, [kpi]: e.target.value }))} disabled={!monthlyEditMode} placeholder="0" className={fieldCls} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* Tabs Switcher */}
       <div className="flex border-b border-border">
@@ -552,6 +603,7 @@ export function DailyEditor() {
         </section>
       )}
 
+      <AdminAuthDialog open={managerOpen} onClose={() => setManagerOpen(false)} />
     </div>
   );
 }
