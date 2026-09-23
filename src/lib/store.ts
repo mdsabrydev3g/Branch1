@@ -137,11 +137,50 @@ function sharedStateFromStore(state: Pick<
 }
 
 let sharedSaveTimer: ReturnType<typeof setTimeout> | undefined;
+let sharedRevision = 0;
 
-function queueSharedSave(get: () => PerfState) {
+async function applySharedConflict(
+  get: () => PerfState,
+  set: (partial: Partial<PerfState> | ((state: PerfState) => Partial<PerfState>)) => void,
+) {
+  try {
+    const fresh = await loadDashboardState();
+    migrateNames(fresh);
+    sharedRevision = fresh.revision;
+    set({
+      ...fresh,
+      branchKpiTargets: fresh.branchKpiTargets ?? {},
+      branchKpisByPeriod:
+        fresh.branchKpisByPeriod && Object.keys(fresh.branchKpisByPeriod).length
+          ? fresh.branchKpisByPeriod
+          : { [fresh.period]: fresh.branchKpis },
+      branchKpis: fresh.branchKpisByPeriod?.[fresh.period] ?? fresh.branchKpis,
+      hydrated: true,
+      role: get().role,
+      saveState: "error",
+    });
+  } catch {
+    set({ saveState: "error" });
+  }
+}
+
+function queueSharedSave(
+  get: () => PerfState,
+  set: (partial: Partial<PerfState> | ((state: PerfState) => Partial<PerfState>)) => void,
+) {
   if (sharedSaveTimer) clearTimeout(sharedSaveTimer);
   sharedSaveTimer = setTimeout(() => {
-    void saveDashboardState({ data: sharedStateFromStore(get()) });
+    void (async () => {
+      const result = await saveDashboardState({
+        data: sharedStateFromStore(get()),
+        expectedRevision: sharedRevision,
+      });
+      if (result.ok) {
+        sharedRevision = result.revision;
+      } else {
+        await applySharedConflict(get, set);
+      }
+    })();
   }, 300);
 }
 
@@ -375,7 +414,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().branchKpiTargets,
       get().branchKpisByPeriod,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setValue: (dep, kpi, field, value) => {
     const { period, data, role } = get();
@@ -685,7 +724,15 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       nextBranchKpisByPeriod,
     );
 
-    await saveDashboardState({ data: sharedStateFromStore(get()) });
+    const saveResult = await saveDashboardState({
+      data: sharedStateFromStore(get()),
+      expectedRevision: sharedRevision,
+    });
+    if (!saveResult.ok) {
+      await applySharedConflict(get, set);
+      throw new Error("Dashboard changed on another device. The latest data was loaded; please review and save again.");
+    }
+    sharedRevision = saveResult.revision;
   },
   hydrate: async (silent = false) => {
     if (!silent && get().hydrated) return;
@@ -694,6 +741,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     const currentRole = get().role;
     try {
       const shared = await loadDashboardState();
+      sharedRevision = shared.revision;
       // السيرفر قد يحمل أسماء قديمة (مؤشرات أو أقسام) — رحّلها قبل الاستخدام
       migrateNames(shared);
       set({
