@@ -405,6 +405,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       get().departmentTargets,
       get().branchKpiTargets,
+      get().branchKpisByPeriod,
     );
     queueSave(period, dep, kpi, nextEntry, (saveState) => set({ saveState }));
     queueSharedSave(get);
