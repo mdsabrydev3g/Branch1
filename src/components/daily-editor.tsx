@@ -158,6 +158,7 @@ export function DailyEditor() {
 
   const startMonthlyEdit = (mode: "add" | "edit") => {
     if (role !== "manager") { setAuthAction(mode === "add" ? "addMonthly" : "editMonthly"); return; }
+    dirtyRef.current = false;
     initDrafts();
     if (mode === "add") setMonthlyKpiDrafts({});
     setMonthlyEditMode(true);
@@ -331,14 +332,16 @@ export function DailyEditor() {
               </Button>
             </>
           ) : (
-            <Button variant="outline" onClick={startAddDaily} className="flex items-center gap-2 px-4 py-2.5">
-              <Save className="size-4" />
-              إضافة يوم
-            </Button>
-            <Button onClick={startEdit} className="flex items-center gap-2 px-5 py-2.5 shadow-lg">
-              <Pencil className="size-4" />
-              تعديل اليوم
-            </Button>
+            <>
+              <Button variant="outline" onClick={startAddDaily} className="flex items-center gap-2 px-4 py-2.5">
+                <Save className="size-4" />
+                إضافة يوم
+              </Button>
+              <Button onClick={startEdit} className="flex items-center gap-2 px-5 py-2.5 shadow-lg">
+                <Pencil className="size-4" />
+                تعديل اليوم
+              </Button>
+            </>
           )}
         </div>
       </div>
