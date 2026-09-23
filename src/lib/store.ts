@@ -447,7 +447,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().branchKpisByPeriod,
     );
     queueSave(period, dep, kpi, nextEntry, (saveState) => set({ saveState }));
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setBranchValue: (kpi, field, value) => {
     if (get().role === "staff") return;
@@ -472,7 +472,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     } catch {
       /* ignore quota / private mode */
     }
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setDailyActual: (dep, kpi, date, value) => {
     const { period, data, dailyActuals, role } = get();
@@ -512,7 +512,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentTargets,
       get().branchKpiTargets,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setBranchDailyActual: (kpi, date, value) => {
     if (get().role === "staff") return;
@@ -542,7 +542,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().branchKpiTargets,
       nextKpisByPeriod,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setBranchKpiTarget: (kpi, value) => {
     if (get().role === "staff") return;
@@ -569,7 +569,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       nextTargets,
       nextKpisByPeriod,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setDepartmentDailyActual: (dep, date, value) => {
     if (get().role === "staff") return;
@@ -595,7 +595,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentTargets,
       get().branchKpiTargets,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setDepartmentTarget: (dep, value) => {
     if (get().role === "staff") return;
@@ -618,7 +618,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       next,
       get().branchKpiTargets,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   saveBatchDaily: async ({
     period,
