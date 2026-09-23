@@ -6,7 +6,6 @@ import {
   localDateString,
   DEPS,
   KPIS,
-  DEP_COPY,
   type Kpi,
   type Dep,
 } from "@/lib/domain";
@@ -35,7 +34,7 @@ import {
  */
 export function DailyEditor() {
   const role = usePerfStore((s) => s.role);
-  const [authAction, setAuthAction] = useState<"addDaily" | "editDaily" | "addMonthly" | "editMonthly" | null>(null);
+  const [authAction, setAuthAction] = useState<"editDaily" | "editMonthlyTarget" | null>(null);
   const period = usePerfStore((s) => s.period);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
@@ -43,7 +42,7 @@ export function DailyEditor() {
   const branchKpiTargets = usePerfStore((s) => s.branchKpiTargets);
   const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
   const saveBatchDaily = usePerfStore((s) => s.saveBatchDaily);
-  const saveMonthlyKpiActuals = usePerfStore((s) => s.saveMonthlyKpiActuals);
+  const saveMonthlyTargets = usePerfStore((s) => s.saveMonthlyTargets);
 
   const [activeTab, setActiveTab] = useState<"deps" | "kpis">("deps");
 
@@ -52,13 +51,13 @@ export function DailyEditor() {
 
   // وضع التعديل: الحقول مقفولة حتى الضغط على "تعديل"، والحفظ يغلقها من جديد
   const [editMode, setEditMode] = useState(false);
-  const [monthlyEditMode, setMonthlyEditMode] = useState(false);
+  const [monthlyTargetEditMode, setMonthlyTargetEditMode] = useState(false);
 
   const [depActualDrafts, setDepActualDrafts] = useState<Record<string, string>>({});
   const [depTargetDrafts, setDepTargetDrafts] = useState<Record<string, string>>({});
   const [kpiActualDrafts, setKpiActualDrafts] = useState<Record<string, string>>({});
   const [kpiTargetDrafts, setKpiTargetDrafts] = useState<Record<string, string>>({});
-  const [monthlyKpiDrafts, setMonthlyKpiDrafts] = useState<Record<string, string>>({});
+
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -72,46 +71,27 @@ export function DailyEditor() {
 
   const initDrafts = useCallback(() => {
     const periodDepDaily = departmentDailyActuals[period] ?? {};
-    const periodDepTargets = departmentTargets[period] ?? {};
     const periodKpiDaily = branchDailyActuals[period] ?? {};
-    const periodKpiTargets = branchKpiTargets[period] ?? {};
 
     const newDepActuals: Record<string, string> = {};
-    const newDepTargets: Record<string, string> = {};
     DEPS.forEach((dep) => {
       const actualVal = periodDepDaily[dep]?.[editingDate];
       newDepActuals[dep] = actualVal !== undefined ? String(actualVal) : "";
-      const targetVal = periodDepTargets[dep];
-      newDepTargets[dep] = targetVal !== undefined ? String(targetVal) : "";
     });
 
     const newKpiActuals: Record<string, string> = {};
-    const newKpiTargets: Record<string, string> = {};
     KPIS.forEach((kpi) => {
       const actualVal = periodKpiDaily[kpi]?.[editingDate];
       newKpiActuals[kpi] = actualVal !== undefined && actualVal > 0 ? String(actualVal) : "";
-      const targetVal = periodKpiTargets[kpi] ?? branchKpisByPeriod[period]?.[kpi]?.plan;
-      newKpiTargets[kpi] = targetVal !== undefined && targetVal > 0 ? String(targetVal) : "";
     });
 
     setDepActualDrafts(newDepActuals);
-    setDepTargetDrafts(newDepTargets);
     setKpiActualDrafts(newKpiActuals);
-    setKpiTargetDrafts(newKpiTargets);
-    const monthly: Record<string, string> = {};
-    KPIS.forEach((kpi) => {
-      const value = branchKpisByPeriod[period]?.[kpi]?.result;
-      monthly[kpi] = value !== undefined ? String(value) : "";
-    });
-    setMonthlyKpiDrafts(monthly);
   }, [
     period,
     editingDate,
     departmentDailyActuals,
-    departmentTargets,
     branchDailyActuals,
-    branchKpiTargets,
-    branchKpisByPeriod,
   ]);
 
   // عند تغيير الشهر، انتقل تلقائيًا إلى تاريخ صالح داخل الشهر المختار.
@@ -148,20 +128,30 @@ export function DailyEditor() {
     setEditMode(true);
   };
 
-  const startAddDaily = () => {
-    if (role !== "manager") { setAuthAction("addDaily"); return; }
-    dirtyRef.current = false;
-    setDepActualDrafts({});
-    setKpiActualDrafts({});
-    setEditMode(true);
-  };
+  const initTargetDrafts = useCallback(() => {
+    const depTargets = departmentTargets[period] ?? {};
+    const kpiTargets = branchKpiTargets[period] ?? {};
+    const nextDepTargets: Record<string, string> = {};
+    const nextKpiTargets: Record<string, string> = {};
 
-  const startMonthlyEdit = (mode: "add" | "edit") => {
-    if (role !== "manager") { setAuthAction(mode === "add" ? "addMonthly" : "editMonthly"); return; }
+    DEPS.forEach((dep) => {
+      const value = depTargets[dep];
+      nextDepTargets[dep] = value !== undefined ? String(value) : "";
+    });
+    KPIS.forEach((kpi) => {
+      const value = kpiTargets[kpi] ?? branchKpisByPeriod[period]?.[kpi]?.plan;
+      nextKpiTargets[kpi] = value !== undefined ? String(value) : "";
+    });
+
+    setDepTargetDrafts(nextDepTargets);
+    setKpiTargetDrafts(nextKpiTargets);
+  }, [departmentTargets, branchKpiTargets, branchKpisByPeriod, period]);
+
+  const startMonthlyTargetEdit = () => {
+    if (role !== "manager") { setAuthAction("editMonthlyTarget"); return; }
     dirtyRef.current = false;
-    initDrafts();
-    if (mode === "add") setMonthlyKpiDrafts({});
-    setMonthlyEditMode(true);
+    initTargetDrafts();
+    setMonthlyTargetEditMode(true);
   };
 
   const cancelEdit = () => {
@@ -170,14 +160,36 @@ export function DailyEditor() {
     setEditMode(false);
   };
 
-  const handleSaveMonthly = async () => {
+  const cancelMonthlyTargetEdit = () => {
+    dirtyRef.current = false;
+    initTargetDrafts();
+    setMonthlyTargetEditMode(false);
+  };
+
+  const handleSaveMonthlyTargets = async () => {
     if (role !== "manager") return;
-    const actuals: Partial<Record<Kpi, number>> = {};
-    KPIS.forEach((kpi) => {
-      const value = monthlyKpiDrafts[kpi];
-      if (value !== undefined && value.trim() !== "") actuals[kpi] = parseFloat(value) || 0;
+    setSaveStatus("saving");
+    const depTargets: Partial<Record<Dep, number>> = {};
+    const kpiTargets: Partial<Record<Kpi, number>> = {};
+
+    DEPS.forEach((dep) => {
+      const value = depTargetDrafts[dep] ?? "";
+      if (value.trim() !== "") depTargets[dep] = parseFloat(value.replace(/,/g, "")) || 0;
     });
-    try { await saveMonthlyKpiActuals({ period, actuals }); setMonthlyEditMode(false); } catch { /* keep editor open */ }
+    KPIS.forEach((kpi) => {
+      const value = kpiTargetDrafts[kpi] ?? "";
+      if (value.trim() !== "") kpiTargets[kpi] = parseFloat(value.replace(/,/g, "")) || 0;
+    });
+
+    try {
+      await saveMonthlyTargets({ period, depTargets, kpiTargets });
+      setMonthlyTargetEditMode(false);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    } catch {
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
   };
 
   const handleSaveAll = async () => {
@@ -186,29 +198,19 @@ export function DailyEditor() {
 
     try {
       const depActuals: Partial<Record<Dep, number>> = {};
-      const depTargets: Partial<Record<Dep, number>> = {};
       DEPS.forEach((dep) => {
         // الخانة الفارغة تعني "بدون تغيير" — لا نكتب صفراً فوق المحقق المحفوظ
         const actStr = depActualDrafts[dep] ?? "";
         if (actStr.trim() !== "") {
           depActuals[dep] = parseFloat(actStr) || 0;
         }
-        const tarStr = depTargetDrafts[dep];
-        if (tarStr !== undefined && tarStr !== "") {
-          depTargets[dep] = parseFloat(tarStr) || 0;
-        }
       });
 
       const kpiActuals: Partial<Record<Kpi, number>> = {};
-      const kpiTargets: Partial<Record<Kpi, number>> = {};
       KPIS.forEach((kpi) => {
         const actStr = kpiActualDrafts[kpi] ?? "";
         if (actStr.trim() !== "") {
           kpiActuals[kpi] = parseFloat(actStr) || 0;
-        }
-        const tarStr = kpiTargetDrafts[kpi];
-        if (tarStr !== undefined && tarStr !== "") {
-          kpiTargets[kpi] = parseFloat(tarStr) || 0;
         }
       });
 
@@ -216,9 +218,7 @@ export function DailyEditor() {
         period,
         date: editingDate,
         depActuals,
-        depTargets,
         kpiActuals,
-        kpiTargets,
       });
 
       dirtyRef.current = false;
@@ -294,90 +294,73 @@ export function DailyEditor() {
 
           {editMode ? (
             <>
-              <Button
-                onClick={handleSaveAll}
-                disabled={saveStatus === "saving"}
-                className={cn(
-                  "flex items-center gap-2 px-5 py-2.5 shadow-lg",
-                  saveStatus === "saved"
-                    ? "bg-success text-success-foreground"
-                    : "bg-primary text-primary-foreground",
-                )}
-              >
-                {saveStatus === "saving" ? (
-                  <>
-                    <RefreshCw className="size-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : saveStatus === "saved" ? (
-                  <>
-                    <CheckCircle2 className="size-4" />
-                    Saved & Synced!
-                  </>
-                ) : (
-                  <>
-                    <Save className="size-4" />
-                    Save and synchronize
-                  </>
-                )}
+              <Button onClick={handleSaveAll} disabled={saveStatus === "saving"} className={cn("flex items-center gap-2 px-5 py-2.5 shadow-lg", saveStatus === "saved" ? "bg-success text-success-foreground" : "bg-primary text-primary-foreground")}>
+                {saveStatus === "saving" ? <><RefreshCw className="size-4 animate-spin" />Saving...</> : saveStatus === "saved" ? <><CheckCircle2 className="size-4" />Saved & Synced!</> : <><Save className="size-4" />Save and synchronize</>}
               </Button>
-              <Button
-                variant="outline"
-                onClick={cancelEdit}
-                disabled={saveStatus === "saving"}
-                className="flex items-center gap-2 px-4 py-2.5"
-              >
-                <X className="size-4" />
-                Cancel
+              <Button variant="outline" onClick={cancelEdit} disabled={saveStatus === "saving"} className="flex items-center gap-2 px-4 py-2.5">
+                <X className="size-4" />Cancel
               </Button>
             </>
           ) : (
-            <>
-              <Button variant="outline" onClick={startAddDaily} className="flex items-center gap-2 px-4 py-2.5">
-                <Save className="size-4" />
-                إضافة يوم
-              </Button>
-              <Button onClick={startEdit} className="flex items-center gap-2 px-5 py-2.5 shadow-lg">
-                <Pencil className="size-4" />
-                تعديل اليوم
-              </Button>
-            </>
-          )}
+            <Button onClick={startEdit} className="flex items-center gap-2 px-5 py-2.5 shadow-lg">
+              <Pencil className="size-4" />Edit Daily Actual
+            </Button>
+          )}          )}
         </div>
       </div>
 
       <section className="rounded-2xl border border-border bg-card/80 overflow-hidden shadow-sm">
         <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Monthly KPI Actuals</h2>
-            <p className="mt-1 text-xs text-subtle">المحقق الشهري مستقل عن اليومي ولكل شهر بياناته الخاصة.</p>
+            <h2 className="text-sm font-semibold text-foreground">Monthly Targets</h2>
+            <p className="mt-1 text-xs text-subtle">Targets are stored separately for each selected month.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {monthlyEditMode ? (
-              <>
-                <Button onClick={handleSaveMonthly} className="flex items-center gap-2"><Save className="size-4" />حفظ المحقق الشهري</Button>
-                <Button variant="outline" onClick={() => { initDrafts(); setMonthlyEditMode(false); }}>إلغاء</Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => startMonthlyEdit("add")} className="flex items-center gap-2"><Save className="size-4" />إضافة شهري</Button>
-                <Button onClick={() => startMonthlyEdit("edit")} className="flex items-center gap-2"><Pencil className="size-4" />تعديل الشهري</Button>
-              </>
-            )}
-          </div>
+          {monthlyTargetEditMode ? (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleSaveMonthlyTargets} disabled={saveStatus === "saving"} className="flex items-center gap-2">
+                <Save className="size-4" />{saveStatus === "saving" ? "Saving..." : "Save Monthly Targets"}
+              </Button>
+              <Button variant="outline" onClick={cancelMonthlyTargetEdit} disabled={saveStatus === "saving"} className="flex items-center gap-2">
+                <X className="size-4" />Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={startMonthlyTargetEdit} className="flex items-center gap-2">
+              <Pencil className="size-4" />Edit Target Monthly
+            </Button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead><tr className="border-b border-border bg-card-2/40 text-2xs uppercase tracking-wider text-subtle">
-              <th className="px-3 py-3 text-center font-semibold">KPI</th>
-              <th className="px-3 py-3 text-center font-semibold text-primary">Monthly Actual</th>
+              <th className="px-3 py-3 text-center font-semibold">Type</th>
+              <th className="px-3 py-3 text-center font-semibold">Name</th>
+              <th className="px-3 py-3 text-center font-semibold text-primary">Monthly Target</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
+              {DEPS.map((dep) => (
+                <tr key={dep}>
+                  <td className="px-3 py-3 text-center text-xs text-subtle">Department</td>
+                  <td className="px-3 py-3 text-center font-semibold text-foreground">{dep}</td>
+                  <td className="px-3 py-3 text-center">
+                    {monthlyTargetEditMode ? (
+                      <input type="text" inputMode="numeric" value={depTargetDrafts[dep] ?? ""} onChange={(e) => setDepTargetDrafts((prev) => ({ ...prev, [dep]: e.target.value }))} placeholder="0" className={fieldCls} />
+                    ) : (
+                      <span className="font-mono text-sm font-bold tabular-nums text-foreground">{formatNumber(departmentTargets[period]?.[dep] ?? 0)}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
               {KPIS.map((kpi) => (
                 <tr key={kpi}>
+                  <td className="px-3 py-3 text-center text-xs text-subtle">KPI</td>
                   <td className="px-3 py-3 text-center font-semibold text-foreground">{kpi}</td>
                   <td className="px-3 py-3 text-center">
-                    <input type="number" value={monthlyKpiDrafts[kpi] ?? ""} onChange={(e) => setMonthlyKpiDrafts((prev) => ({ ...prev, [kpi]: e.target.value }))} disabled={!monthlyEditMode} placeholder="0" className={fieldCls} />
+                    {monthlyTargetEditMode ? (
+                      <input type="text" inputMode="numeric" value={kpiTargetDrafts[kpi] ?? ""} onChange={(e) => setKpiTargetDrafts((prev) => ({ ...prev, [kpi]: e.target.value }))} placeholder="0" className={fieldCls} />
+                    ) : (
+                      <span className="font-mono text-sm font-bold tabular-nums text-foreground">{formatNumber(branchKpiTargets[period]?.[kpi] ?? branchKpisByPeriod[period]?.[kpi]?.plan ?? 0)}</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -451,7 +434,7 @@ export function DailyEditor() {
               </thead>
               <tbody className="divide-y divide-border text-sm">
                 {DEPS.map((dep) => {
-                  const targetVal = parseFloat(depTargetDrafts[dep] || "0") || 0;
+                  const targetVal = departmentTargets[period]?.[dep] ?? 0;
                   const dailyTarget = targetVal > 0 ? targetVal / daysInMonth : 0;
                   const daySales = daySalesFor(dep, true);
                   // % = مبيعات اليوم المختار ÷ التارجيت اليومي للقسم
@@ -542,7 +525,7 @@ export function DailyEditor() {
               </thead>
               <tbody className="divide-y divide-border text-sm">
                 {KPIS.map((kpi) => {
-                  const targetVal = parseFloat(kpiTargetDrafts[kpi] || "0") || 0;
+                  const targetVal = branchKpiTargets[period]?.[kpi] ?? branchKpisByPeriod[period]?.[kpi]?.plan ?? 0;
                   // CR معدل تحويل (%): قيمة شهرية — النسبة = المحقق ÷ المستهدف مباشرة
                   const isRateKpi = kpi === "CR";
                   const dailyTarget = targetVal > 0 ? targetVal / daysInMonth : 0;
@@ -611,10 +594,8 @@ export function DailyEditor() {
         onSuccess={() => {
           const action = authAction;
           setAuthAction(null);
-          if (action === "addDaily") startAddDaily();
-          else if (action === "editDaily") startEdit();
-          else if (action === "addMonthly") startMonthlyEdit("add");
-          else if (action === "editMonthly") startMonthlyEdit("edit");
+          if (action === "editDaily") startEdit();
+          else if (action === "editMonthlyTarget") startMonthlyTargetEdit();
         }}
       />
     </div>
