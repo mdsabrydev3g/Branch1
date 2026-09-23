@@ -46,7 +46,7 @@ export function OverviewView() {
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
   const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const branchKpiTargets = usePerfStore((s) => s.branchKpiTargets);
-  const branchKpis = usePerfStore((s) => s.branchKpis);
+  const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
 
   const block = data[period] || {};
   const daysInMonth = getDaysInMonth(period);
@@ -94,9 +94,9 @@ export function OverviewView() {
       const enteredTarget =
         branchKpiTargets[period]?.[kpi] ??
         FIXED_KPI_TARGETS[kpi] ??
-        branchKpis[kpi]?.plan ??
+        branchKpisByPeriod[period]?.[kpi]?.plan ??
         0;
-      const enteredActual = hasDaily ? latestVal : (branchKpis[kpi]?.result ?? 0);
+      const enteredActual = hasDaily ? latestVal : (branchKpisByPeriod[period]?.[kpi]?.result ?? 0);
 
       const target = kpi === "Gross" && enteredTarget === 0 ? totalDepsTarget : enteredTarget;
       const actual = kpi === "Gross" && enteredActual === 0 ? totalDepsActual : enteredActual;
@@ -115,7 +115,7 @@ export function OverviewView() {
     });
 
     return result;
-  }, [deptData, period, branchDailyActuals, branchKpiTargets, branchKpis, trackDay]);
+  }, [deptData, period, branchDailyActuals, branchKpiTargets, branchKpisByPeriod, trackDay]);
 
   // حساب القيم لمجموعات الأقسام
   const groupData = useMemo(() => {
