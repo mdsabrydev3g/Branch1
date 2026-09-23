@@ -46,7 +46,7 @@ export function ReportsView() {
   const block = usePerfStore((s) => s.data[period]);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
-  const branchKpis = usePerfStore((s) => s.branchKpis);
+  const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
   const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const meta = periodMeta(period);
   // مثل صفحة Overview: نسبة الفرع = المحقق التراكمي ÷ التراك (مستهدف حتى الأمس)
@@ -222,8 +222,8 @@ export function ReportsView() {
             // القراءات تراكمية أصلاً وجمعها يضخم الرقم) مع رجوع لآخر قيمة محفوظة
             const daily = branchDailyActuals[period]?.[kpi];
             const latestKpiVal = cumAtDay(daily, getTrackDay(period));
-            const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
-            const enteredPlan = branchKpis[kpi]?.plan ?? 0;
+            const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpisByPeriod[period]?.[kpi]?.result ?? 0);
+            const enteredPlan = branchKpisByPeriod[period]?.[kpi]?.plan ?? 0;
             // Gross: عند عدم إدخاله يعادل إجمالي الأقسام تلقائياً (مثل صفحة Overview)
             const isGross = kpi === "Gross";
             const target = isGross && enteredPlan === 0 ? totals.plan : enteredPlan;
@@ -362,9 +362,9 @@ function downloadCsv(
   }
   for (const kpi of KPIS) {
     const isGross = kpi === "Gross";
-    const enteredPlan = branchKpis[kpi]?.plan ?? 0;
+    const enteredPlan = branchKpisByPeriod[period]?.[kpi]?.plan ?? 0;
     const latestKpiVal = cumAtDay(branchDailyActuals[period]?.[kpi], getTrackDay(period));
-    const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
+    const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpisByPeriod[period]?.[kpi]?.result ?? 0);
     const target = isGross && enteredPlan === 0 ? branchPlanSum : enteredPlan;
     const actual = isGross && enteredActual === 0 ? branchActualSum : enteredActual;
     const kpiRatio = ratio({ plan: target, result: actual });
