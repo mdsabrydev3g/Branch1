@@ -54,7 +54,6 @@ interface PerfState {
   setValue: (dep: Dep, kpi: Kpi, field: Field, value: number) => void;
   setBranchValue: (kpi: Kpi, field: Field, value: number) => void;
   setDailyActual: (dep: Dep, kpi: Kpi, date: string, value: number) => void;
-  setBranchDailyActual: (kpi: Kpi, date: string, value: number) => void;
 
   setDepartmentDailyActual: (dep: Dep, date: string, value: number) => void;
   setDepartmentTarget: (dep: Dep, value: number) => void;
@@ -513,36 +512,6 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentTargets,
       get().branchKpiTargets,
       get().branchKpisByPeriod,
-    );
-    queueSharedSave(get, set);
-  },
-  setBranchDailyActual: (kpi, date, value) => {
-    if (get().role === "staff") return;
-    const { period, branchDailyActuals, branchKpisByPeriod } = get();
-    const next: BranchDailyActuals = {
-      ...branchDailyActuals,
-      [period]: {
-        ...(branchDailyActuals[period] ?? {}),
-        [kpi]: {
-          ...(branchDailyActuals[period]?.[kpi] ?? {}),
-          [date]: value,
-        },
-      },
-    };
-    const currentKpis = branchKpisByPeriod[period] ?? createBranchKpiSeed();
-    const nextKpis: BranchKpiData = { ...currentKpis, [kpi]: { ...currentKpis[kpi], result: value } };
-    const nextKpisByPeriod: BranchKpiDataByPeriod = { ...branchKpisByPeriod, [period]: nextKpis };
-    markSaved();
-    set({ branchDailyActuals: next, branchKpis: nextKpis, branchKpisByPeriod: nextKpisByPeriod });
-    persistLocal(
-      period,
-      get().data,
-      get().dailyActuals,
-      next,
-      get().departmentDailyActuals,
-      get().departmentTargets,
-      get().branchKpiTargets,
-      nextKpisByPeriod,
     );
     queueSharedSave(get, set);
   },
