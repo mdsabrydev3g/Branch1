@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { format } from "date-fns";
 import {
   Calendar,
@@ -13,7 +13,7 @@ import {
   Tv,
   Edit,
 } from "lucide-react";
-import { PERIODS, VIEW_DEP, type ViewId } from "@/lib/domain";
+import { PERIODS, type ViewId } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
 import { usePrefs, usePrefsEffect } from "@/lib/prefs";
 import { Button } from "@/components/ui/button";
