@@ -65,6 +65,8 @@ export function DailyEditor() {
   const hydrated = usePerfStore((s) => s.hydrated);
 
   const daysInMonth = getDaysInMonth(period);
+  const minDate = `${period}-01`;
+  const maxDate = `${period}-${String(daysInMonth).padStart(2, "0")}`;
 
   const initDrafts = useCallback(() => {
     const periodDepDaily = departmentDailyActuals[period] ?? {};
@@ -104,8 +106,21 @@ export function DailyEditor() {
     branchKpis,
   ]);
 
-  // تغيير الشهر أو تاريخ الإدخال: إعادة تهيئة قسرية للخانات + قفل التعديل
+  // عند تغيير الشهر، انتقل تلقائيًا إلى تاريخ صالح داخل الشهر المختار.
+  // هذا يمنع بقاء تاريخ من شهر سابق/لاحق، مع الحفاظ على اختيار المستخدم داخل الشهر.
   useEffect(() => {
+    if (editingDate.slice(0, 7) !== period) {
+      const today = localDateString();
+      if (today.slice(0, 7) === period) {
+        setEditingDate(today);
+      } else if (period < today.slice(0, 7)) {
+        setEditingDate(maxDate);
+      } else {
+        setEditingDate(minDate);
+      }
+      return;
+    }
+
     dirtyRef.current = false;
     setEditMode(false);
     initDrafts();
@@ -256,7 +271,12 @@ export function DailyEditor() {
             <input
               type="date"
               value={editingDate}
-              onChange={(e) => setEditingDate(e.target.value)}
+              min={minDate}
+              max={maxDate}
+              onChange={(e) => {
+                const nextDate = e.target.value;
+                if (nextDate >= minDate && nextDate <= maxDate) setEditingDate(nextDate);
+              }}
               aria-label="Entry date"
               className="w-[140px] bg-transparent text-sm font-semibold tabular-nums text-foreground outline-none sm:w-[150px]"
             />
