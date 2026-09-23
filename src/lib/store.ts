@@ -190,7 +190,7 @@ function readSaved(): {
               departmentDailyActuals: parsed.departmentDailyActuals ?? {},
               departmentTargets: parsed.departmentTargets ?? {},
               branchKpiTargets: parsed.branchKpiTargets ?? {},
-              branchKpisByPeriod: parsed.branchKpisByPeriod ?? {},
+              branchKpisByPeriod: parsed.branchKpisByPeriod ?? { [parsed.period]: createBranchKpiSeed() },
             }),
           );
         } catch {
@@ -357,8 +357,9 @@ export const usePerfStore = create<PerfState>((set, get) => ({
   exitManager: () => set({ role: "staff" }),
   setView: (view) => set({ view }),
   setPeriod: (period) => {
+    const currentBranchKpis = get().branchKpisByPeriod[period] ?? createBranchKpiSeed();
     markSaved();
-    set({ period });
+    set({ period, branchKpis: currentBranchKpis });
     persistLocal(
       period,
       get().data,
@@ -732,6 +733,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         get().departmentDailyActuals,
         get().departmentTargets,
         get().branchKpiTargets,
+        get().branchKpisByPeriod,
       );
       set({ hydrated: true });
     }
