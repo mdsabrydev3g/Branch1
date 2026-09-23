@@ -33,22 +33,37 @@ export const DEPS = [
 ] as const;
 export type Dep = (typeof DEPS)[number];
 
-export const PERIODS = [
-  { id: "2026-04", label: "April 2026", short: "Apr" },
-  { id: "2026-05", label: "May 2026", short: "May" },
-  { id: "2026-06", label: "June 2026", short: "Jun" },
-  { id: "2026-07", label: "July 2026", short: "Jul" },
-  { id: "2026-08", label: "August 2026", short: "Aug" },
-  { id: "2026-09", label: "September 2026", short: "Sep" },
-] as const;
+/** Dynamic periods: historical 2026 data is retained, future months/years are generated automatically. */
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"] as const;
+const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] as const;
 
-export type PeriodId = (typeof PERIODS)[number]["id"];
+export type PeriodId = string;
+
+export function currentPeriodId(date = new Date()): PeriodId {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function buildPeriods(startYear: number, endYear: number) {
+  const periods: { id: PeriodId; label: string; short: string }[] = [];
+  for (let year = startYear; year <= endYear; year++) {
+    for (let month = 1; month <= 12; month++) {
+      const id = `${year}-${String(month).padStart(2, "0")}`;
+      periods.push({ id, label: `${MONTH_NAMES[month - 1]} ${year}`, short: MONTH_SHORT[month - 1] });
+    }
+  }
+  return periods;
+}
+
+/** Automatically includes the current year plus the next year. */
+export const PERIODS = buildPeriods(2026, Math.max(new Date().getFullYear() + 1, 2027));
 
 export type ViewId = "overview" | "tv" | "mda" | "mobile" | "daily" | "reports";
 
 export type Entry = { plan: number; result: number };
 export type DeptBlock = Record<Kpi, Entry>;
 export type BranchKpiData = Record<Kpi, Entry>;
+/** Branch KPI values are isolated by YYYY-MM period. */
+export type BranchKpiDataByPeriod = Partial<Record<PeriodId, BranchKpiData>>;
 export type PeriodBlock = Record<Dep, DeptBlock>;
 export type PerformanceData = Record<PeriodId, PeriodBlock>;
 export type DailyActuals = Partial<Record<

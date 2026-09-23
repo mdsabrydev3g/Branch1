@@ -44,9 +44,8 @@ export function OverviewView() {
   const period = usePerfStore((s) => s.period);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
-  const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const branchKpiTargets = usePerfStore((s) => s.branchKpiTargets);
-  const branchKpis = usePerfStore((s) => s.branchKpis);
+  const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
 
   const block = data[period] || {};
   const daysInMonth = getDaysInMonth(period);
@@ -88,15 +87,14 @@ export function OverviewView() {
 
     (["Gross", "Agency", "BOXI", "Mylo", "CR", "GK", "Gift"] as Kpi[]).forEach((kpi) => {
       const isRateKpi = kpi === "CR";
-      const daily = branchDailyActuals[period]?.[kpi] ?? {};
-      const hasDaily = Object.keys(daily).length > 0;
-      const latestVal = cumAtDay(daily, trackDay);
+      // Monthly KPI Actual is independent from Daily readings.
+      // Daily data is used only by the Daily page for day-by-day calculations.
       const enteredTarget =
         branchKpiTargets[period]?.[kpi] ??
         FIXED_KPI_TARGETS[kpi] ??
-        branchKpis[kpi]?.plan ??
+        branchKpisByPeriod[period]?.[kpi]?.plan ??
         0;
-      const enteredActual = hasDaily ? latestVal : (branchKpis[kpi]?.result ?? 0);
+      const enteredActual = branchKpisByPeriod[period]?.[kpi]?.result ?? 0;
 
       const target = kpi === "Gross" && enteredTarget === 0 ? totalDepsTarget : enteredTarget;
       const actual = kpi === "Gross" && enteredActual === 0 ? totalDepsActual : enteredActual;
@@ -115,7 +113,7 @@ export function OverviewView() {
     });
 
     return result;
-  }, [deptData, period, branchDailyActuals, branchKpiTargets, branchKpis, trackDay]);
+  }, [deptData, period, branchKpiTargets, branchKpisByPeriod]);
 
   // حساب القيم لمجموعات الأقسام
   const groupData = useMemo(() => {

@@ -10,13 +10,15 @@ import type {
   PerformanceData,
   PeriodId,
 } from "@/lib/domain";
-import { createBranchKpiSeed, createSeed } from "@/lib/domain";
+import { createBranchKpiSeed, createSeed, currentPeriodId } from "@/lib/domain";
 import { requireAdmin } from "@/lib/auth/roles.server";
 
 export type SharedDashboardState = {
+  revision: number;
   period: PeriodId;
   data: PerformanceData;
   branchKpis: BranchKpiData;
+  branchKpisByPeriod: Partial<Record<PeriodId, BranchKpiData>>;
   dailyActuals: DailyActuals;
   branchDailyActuals: BranchDailyActuals;
   departmentDailyActuals: DepartmentDailyActuals;
@@ -33,11 +35,14 @@ const stateSchema = z.object({
   departmentDailyActuals: z.record(z.string(), z.unknown()),
   departmentTargets: z.record(z.string(), z.unknown()),
   branchKpiTargets: z.record(z.string(), z.unknown()).optional(),
+  branchKpisByPeriod: z.record(z.string(), z.unknown()).optional(),
+  expectedRevision: z.number().int().nonnegative().optional(),
 });
 
 function defaultState(): SharedDashboardState {
   return {
-    period: "2026-09",
+    revision: 0,
+    period: currentPeriodId(),
     data: createSeed(),
     branchKpis: createBranchKpiSeed(),
     dailyActuals: {},
@@ -45,6 +50,7 @@ function defaultState(): SharedDashboardState {
     departmentDailyActuals: {},
     departmentTargets: {},
     branchKpiTargets: {},
+    branchKpisByPeriod: {},
   };
 }
 
@@ -69,10 +75,11 @@ function parseState(value: unknown): SharedDashboardState {
 export const loadDashboardState = createServerFn({ method: "GET" }).handler(async () => {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
-  const rows = await sql<{ state: unknown }>`
-    select state from dashboard_state where state_key = 'main'
+  const rows = await sql<{ state: unknown; revision: number }>`
+    select state, revision from dashboard_state where state_key = 'main'
   `;
-  return rows[0] ? parseState(rows[0].state) : defaultState();
+  if (!rows[0]) return defaultState();
+  return { ...parseState(rows[0].state), revision: Number(rows[0].revision) || 1 };
 });
 
 export const saveDashboardState = createServerFn({ method: "POST" })
@@ -83,12 +90,49 @@ export const saveDashboardState = createServerFn({ method: "POST" })
     await requireAdmin();
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
-    await sql`
-      insert into dashboard_state (state_key, state, updated_at)
-      values ('main', ${JSON.stringify(data)}::jsonb, now())
-      on conflict (state_key) do update set
-        state = excluded.state,
-        updated_at = now()
+    const { expectedRevision, ...stateData } = data;
+
+    if (expectedRevision === undefined) {
+      // Migration/maintenance callers may still write without a revision.
+      // Normal browser writes always provide expectedRevision.
+      await sql`
+        insert into dashboard_state (state_key, state, revision, updated_at)
+        values ('main', ${JSON.stringify(stateData)}::jsonb, 1, now())
+        on conflict (state_key) do update set
+          state = excluded.state,
+          revision = dashboard_state.revision + 1,
+          updated_at = now()
+      `;
+      const rows = await sql<{ revision: number }>`
+        select revision from dashboard_state where state_key = 'main'
+      `;
+      return { ok: true as const, revision: Number(rows[0]?.revision) || 1 };
+    }
+
+    if (expectedRevision === 0) {
+      const inserted = await sql<{ revision: number }>`
+        insert into dashboard_state (state_key, state, revision, updated_at)
+        values ('main', ${JSON.stringify(stateData)}::jsonb, 1, now())
+        on conflict (state_key) do nothing
+        returning revision
+      `;
+      if (inserted[0]) {
+        return { ok: true as const, revision: Number(inserted[0].revision) };
+      }
+    }
+
+    const rows = await sql<{ revision: number }>`
+      update dashboard_state
+      set state = ${JSON.stringify(stateData)}::jsonb,
+          revision = revision + 1,
+          updated_at = now()
+      where state_key = 'main' and revision = ${expectedRevision}
+      returning revision
     `;
-    return { ok: true as const };
+
+    if (!rows[0]) {
+      return { ok: false as const, conflict: true as const };
+    }
+
+    return { ok: true as const, revision: Number(rows[0].revision) };
   });

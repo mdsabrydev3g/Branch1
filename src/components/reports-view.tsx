@@ -25,7 +25,7 @@ import {
   type PeriodBlock,
   type DepartmentDailyActuals,
   type DepartmentTargets,
-  type BranchDailyActuals,
+  type BranchKpiDataByPeriod,
   type PeriodId,
   type StatusTone,
 } from "@/lib/domain";
@@ -46,8 +46,7 @@ export function ReportsView() {
   const block = usePerfStore((s) => s.data[period]);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
-  const branchKpis = usePerfStore((s) => s.branchKpis);
-  const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
+  const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
   const meta = periodMeta(period);
   // مثل صفحة Overview: نسبة الفرع = المحقق التراكمي ÷ التراك (مستهدف حتى الأمس)
   const totals = DEPS.reduce(
@@ -114,8 +113,7 @@ export function ReportsView() {
                 period,
                 departmentTargets,
                 departmentDailyActuals,
-                branchKpis,
-                branchDailyActuals,
+                branchKpisByPeriod,
               )
             }
           >
@@ -218,12 +216,9 @@ export function ReportsView() {
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {KPIS.map((kpi) => {
-            // Actual = آخر قراءة تراكمية مُدخلة في الشهر (وليس مجموع القراءات —
-            // القراءات تراكمية أصلاً وجمعها يضخم الرقم) مع رجوع لآخر قيمة محفوظة
-            const daily = branchDailyActuals[period]?.[kpi];
-            const latestKpiVal = cumAtDay(daily, getTrackDay(period));
-            const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
-            const enteredPlan = branchKpis[kpi]?.plan ?? 0;
+            // Monthly KPI Actual is independent from Daily readings.
+            const enteredActual = branchKpisByPeriod[period]?.[kpi]?.result ?? 0;
+            const enteredPlan = branchKpisByPeriod[period]?.[kpi]?.plan ?? 0;
             // Gross: عند عدم إدخاله يعادل إجمالي الأقسام تلقائياً (مثل صفحة Overview)
             const isGross = kpi === "Gross";
             const target = isGross && enteredPlan === 0 ? totals.plan : enteredPlan;
@@ -343,8 +338,7 @@ function downloadCsv(
   period: PeriodId,
   departmentTargets: DepartmentTargets,
   departmentDailyActuals: DepartmentDailyActuals,
-  branchKpis: Record<string, { plan: number; result: number }>,
-  branchDailyActuals: BranchDailyActuals,
+  branchKpisByPeriod: BranchKpiDataByPeriod,
 ) {
   const lines = [["Section", "Measure", "Target", "Actual", "Progress", "Status"]];
   let branchPlanSum = 0;
@@ -362,9 +356,9 @@ function downloadCsv(
   }
   for (const kpi of KPIS) {
     const isGross = kpi === "Gross";
-    const enteredPlan = branchKpis[kpi]?.plan ?? 0;
-    const latestKpiVal = cumAtDay(branchDailyActuals[period]?.[kpi], getTrackDay(period));
-    const enteredActual = latestKpiVal > 0 ? latestKpiVal : (branchKpis[kpi]?.result ?? 0);
+    const enteredPlan = branchKpisByPeriod[period]?.[kpi]?.plan ?? 0;
+    // Monthly KPI Actual is independent from Daily readings.
+    const enteredActual = branchKpisByPeriod[period]?.[kpi]?.result ?? 0;
     const target = isGross && enteredPlan === 0 ? branchPlanSum : enteredPlan;
     const actual = isGross && enteredActual === 0 ? branchActualSum : enteredActual;
     const kpiRatio = ratio({ plan: target, result: actual });

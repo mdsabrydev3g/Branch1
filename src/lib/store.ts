@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import {
   createSeed,
+  currentPeriodId,
   createBranchKpiSeed,
   type BranchKpiData,
+  type BranchKpiDataByPeriod,
   type Dep,
   type Entry,
   type Kpi,
@@ -34,6 +36,7 @@ interface PerfState {
   period: PeriodId;
   data: PerformanceData;
   branchKpis: BranchKpiData;
+  branchKpisByPeriod: BranchKpiDataByPeriod;
   dailyActuals: DailyActuals;
   branchDailyActuals: BranchDailyActuals;
   departmentDailyActuals: DepartmentDailyActuals;
@@ -51,10 +54,15 @@ interface PerfState {
   setValue: (dep: Dep, kpi: Kpi, field: Field, value: number) => void;
   setBranchValue: (kpi: Kpi, field: Field, value: number) => void;
   setDailyActual: (dep: Dep, kpi: Kpi, date: string, value: number) => void;
-  setBranchDailyActual: (kpi: Kpi, date: string, value: number) => void;
-  setBranchKpiTarget: (kpi: Kpi, value: number) => void;
+
   setDepartmentDailyActual: (dep: Dep, date: string, value: number) => void;
   setDepartmentTarget: (dep: Dep, value: number) => void;
+  saveMonthlyKpiActuals: (params: { period: PeriodId; actuals: Partial<Record<Kpi, number>> }) => Promise<void>;
+  saveMonthlyTargets: (params: {
+    period: PeriodId;
+    depTargets: Partial<Record<Dep, number>>;
+    kpiTargets: Partial<Record<Kpi, number>>;
+  }) => Promise<void>;
   saveBatchDaily: (params: {
     period: PeriodId;
     date: string;
@@ -86,6 +94,7 @@ function persistLocal(
   departmentDailyActuals: DepartmentDailyActuals = {},
   departmentTargets: DepartmentTargets = {},
   branchKpiTargets: BranchKpiTargets = {},
+  branchKpisByPeriod: BranchKpiDataByPeriod = {},
 ) {
   try {
     localStorage.setItem(
@@ -99,6 +108,7 @@ function persistLocal(
         departmentDailyActuals,
         departmentTargets,
         branchKpiTargets,
+        branchKpisByPeriod,
       }),
     );
   } catch {
@@ -116,6 +126,7 @@ function sharedStateFromStore(state: Pick<
   | "departmentDailyActuals"
   | "departmentTargets"
   | "branchKpiTargets"
+  | "branchKpisByPeriod"
 >): Parameters<typeof saveDashboardState>[0]["data"] {
   return {
     period: state.period,
@@ -126,15 +137,55 @@ function sharedStateFromStore(state: Pick<
     departmentDailyActuals: state.departmentDailyActuals,
     departmentTargets: state.departmentTargets,
     branchKpiTargets: state.branchKpiTargets,
+    branchKpisByPeriod: state.branchKpisByPeriod,
   };
 }
 
 let sharedSaveTimer: ReturnType<typeof setTimeout> | undefined;
+let sharedRevision = 0;
 
-function queueSharedSave(get: () => PerfState) {
+async function applySharedConflict(
+  get: () => PerfState,
+  set: (partial: Partial<PerfState> | ((state: PerfState) => Partial<PerfState>)) => void,
+) {
+  try {
+    const fresh = await loadDashboardState();
+    migrateNames(fresh);
+    sharedRevision = fresh.revision;
+    set({
+      ...fresh,
+      branchKpiTargets: fresh.branchKpiTargets ?? {},
+      branchKpisByPeriod:
+        fresh.branchKpisByPeriod && Object.keys(fresh.branchKpisByPeriod).length
+          ? fresh.branchKpisByPeriod
+          : { [fresh.period]: fresh.branchKpis },
+      branchKpis: fresh.branchKpisByPeriod?.[fresh.period] ?? fresh.branchKpis,
+      hydrated: true,
+      role: get().role,
+      saveState: "error",
+    });
+  } catch {
+    set({ saveState: "error" });
+  }
+}
+
+function queueSharedSave(
+  get: () => PerfState,
+  set: (partial: Partial<PerfState> | ((state: PerfState) => Partial<PerfState>)) => void,
+) {
   if (sharedSaveTimer) clearTimeout(sharedSaveTimer);
   sharedSaveTimer = setTimeout(() => {
-    void saveDashboardState({ data: sharedStateFromStore(get()) });
+    void (async () => {
+      const result = await saveDashboardState({
+        data: sharedStateFromStore(get()),
+        expectedRevision: sharedRevision,
+      });
+      if (result.ok) {
+        sharedRevision = result.revision;
+      } else {
+        await applySharedConflict(get, set);
+      }
+    })();
   }, 300);
 }
 
@@ -146,6 +197,7 @@ function readSaved(): {
   departmentDailyActuals: DepartmentDailyActuals;
   departmentTargets: DepartmentTargets;
   branchKpiTargets: BranchKpiTargets;
+  branchKpisByPeriod: BranchKpiDataByPeriod;
 } | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -158,6 +210,7 @@ function readSaved(): {
       departmentDailyActuals?: DepartmentDailyActuals;
       departmentTargets?: DepartmentTargets;
       branchKpiTargets?: BranchKpiTargets;
+      branchKpisByPeriod?: BranchKpiDataByPeriod;
       version?: number;
     };
     if (!parsed.data || !parsed.period || parsed.version === undefined) return null;
@@ -181,6 +234,7 @@ function readSaved(): {
               departmentDailyActuals: parsed.departmentDailyActuals ?? {},
               departmentTargets: parsed.departmentTargets ?? {},
               branchKpiTargets: parsed.branchKpiTargets ?? {},
+              branchKpisByPeriod: parsed.branchKpisByPeriod ?? { [parsed.period]: createBranchKpiSeed() },
             }),
           );
         } catch {
@@ -197,6 +251,7 @@ function readSaved(): {
       departmentDailyActuals: parsed.departmentDailyActuals ?? {},
       departmentTargets: parsed.departmentTargets ?? {},
       branchKpiTargets: parsed.branchKpiTargets ?? {},
+      branchKpisByPeriod: parsed.branchKpisByPeriod ?? {},
     };
   } catch {
     return null;
@@ -255,6 +310,11 @@ function migrateNames(shared: {
   if (shared.branchKpiTargets) {
     for (const period of Object.keys(shared.branchKpiTargets)) {
       applyKpis(shared.branchKpiTargets[period as PeriodId]);
+    }
+  }
+  if (shared.branchKpisByPeriod) {
+    for (const period of Object.keys(shared.branchKpisByPeriod)) {
+      applyKpis(shared.branchKpisByPeriod[period as PeriodId]);
     }
   }
   if (shared.branchDailyActuals) {
@@ -317,7 +377,7 @@ function queueSave(
 
 export const usePerfStore = create<PerfState>((set, get) => ({
   view: "overview",
-  period: "2026-09",
+  period: currentPeriodId(),
   data: createSeed(),
   branchKpis: createBranchKpiSeed(),
   dailyActuals: {},
@@ -325,6 +385,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
   departmentDailyActuals: {},
   departmentTargets: {},
   branchKpiTargets: {},
+  branchKpisByPeriod: {},
   hydrated: false,
   saveState: "idle",
   role: "staff",
@@ -345,8 +406,9 @@ export const usePerfStore = create<PerfState>((set, get) => ({
   exitManager: () => set({ role: "staff" }),
   setView: (view) => set({ view }),
   setPeriod: (period) => {
+    const currentBranchKpis = get().branchKpisByPeriod[period] ?? createBranchKpiSeed();
     markSaved();
-    set({ period });
+    set({ period, branchKpis: currentBranchKpis });
     persistLocal(
       period,
       get().data,
@@ -355,8 +417,9 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       get().departmentTargets,
       get().branchKpiTargets,
+      get().branchKpisByPeriod,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setValue: (dep, kpi, field, value) => {
     const { period, data, role } = get();
@@ -386,24 +449,35 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       get().departmentTargets,
       get().branchKpiTargets,
+      get().branchKpisByPeriod,
     );
     queueSave(period, dep, kpi, nextEntry, (saveState) => set({ saveState }));
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setBranchValue: (kpi, field, value) => {
     if (get().role === "staff") return;
-    const branchKpis = {
-      ...get().branchKpis,
-      [kpi]: { ...get().branchKpis[kpi], [field]: value },
-    };
+    const { period, branchKpisByPeriod } = get();
+    const current = branchKpisByPeriod[period] ?? createBranchKpiSeed();
+    const nextForPeriod: BranchKpiData = { ...current, [kpi]: { ...current[kpi], [field]: value } };
+    const nextByPeriod: BranchKpiDataByPeriod = { ...branchKpisByPeriod, [period]: nextForPeriod };
     markSaved();
-    set({ branchKpis });
+    set({ branchKpis: nextForPeriod, branchKpisByPeriod: nextByPeriod });
+    persistLocal(
+      period,
+      get().data,
+      get().dailyActuals,
+      get().branchDailyActuals,
+      get().departmentDailyActuals,
+      get().departmentTargets,
+      get().branchKpiTargets,
+      nextByPeriod,
+    );
     try {
-      localStorage.setItem(`${STORAGE_KEY}:branch-kpis`, JSON.stringify(branchKpis));
+      localStorage.setItem(`${STORAGE_KEY}:branch-kpis`, JSON.stringify(nextForPeriod));
     } catch {
       /* ignore quota / private mode */
     }
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setDailyActual: (dep, kpi, date, value) => {
     const { period, data, dailyActuals, role } = get();
@@ -442,45 +516,13 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       get().departmentTargets,
       get().branchKpiTargets,
+      get().branchKpisByPeriod,
     );
-    queueSharedSave(get);
-  },
-  setBranchDailyActual: (kpi, date, value) => {
-    if (get().role === "staff") return;
-    const { period, branchDailyActuals, branchKpis } = get();
-    const next: BranchDailyActuals = {
-      ...branchDailyActuals,
-      [period]: {
-        ...(branchDailyActuals[period] ?? {}),
-        [kpi]: {
-          ...(branchDailyActuals[period]?.[kpi] ?? {}),
-          [date]: value,
-        },
-      },
-    };
-    const nextKpis: BranchKpiData = {
-      ...branchKpis,
-      [kpi]: {
-        ...branchKpis[kpi],
-        result: value,
-      },
-    };
-    markSaved();
-    set({ branchDailyActuals: next, branchKpis: nextKpis });
-    persistLocal(
-      period,
-      get().data,
-      get().dailyActuals,
-      next,
-      get().departmentDailyActuals,
-      get().departmentTargets,
-      get().branchKpiTargets,
-    );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setBranchKpiTarget: (kpi, value) => {
     if (get().role === "staff") return;
-    const { period, branchKpiTargets, branchKpis } = get();
+    const { period, branchKpiTargets, branchKpisByPeriod } = get();
     const nextTargets: BranchKpiTargets = {
       ...branchKpiTargets,
       [period]: {
@@ -488,15 +530,11 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         [kpi]: value,
       },
     };
-    const nextKpis: BranchKpiData = {
-      ...branchKpis,
-      [kpi]: {
-        ...branchKpis[kpi],
-        plan: value,
-      },
-    };
+    const currentKpis = branchKpisByPeriod[period] ?? createBranchKpiSeed();
+    const nextKpis: BranchKpiData = { ...currentKpis, [kpi]: { ...currentKpis[kpi], plan: value } };
+    const nextKpisByPeriod: BranchKpiDataByPeriod = { ...branchKpisByPeriod, [period]: nextKpis };
     markSaved();
-    set({ branchKpiTargets: nextTargets, branchKpis: nextKpis });
+    set({ branchKpiTargets: nextTargets, branchKpis: nextKpis, branchKpisByPeriod: nextKpisByPeriod });
     persistLocal(
       period,
       get().data,
@@ -505,8 +543,103 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       get().departmentTargets,
       nextTargets,
+      nextKpisByPeriod,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
+  },
+  saveMonthlyTargets: async ({ period, depTargets, kpiTargets }) => {
+    if (get().role === "staff") return;
+    const state = get();
+
+    const nextDepartmentTargets: DepartmentTargets = {
+      ...state.departmentTargets,
+      [period]: {
+        ...(state.departmentTargets[period] ?? {}),
+        ...depTargets,
+      },
+    };
+
+    const nextBranchKpiTargets: BranchKpiTargets = {
+      ...state.branchKpiTargets,
+      [period]: {
+        ...(state.branchKpiTargets[period] ?? {}),
+        ...kpiTargets,
+      },
+    };
+
+    const currentKpis = state.branchKpisByPeriod[period] ?? createBranchKpiSeed();
+    const nextKpis = { ...currentKpis };
+    for (const [k, value] of Object.entries(kpiTargets)) {
+      const kpi = k as Kpi;
+      if (nextKpis[kpi]) {
+        nextKpis[kpi] = { ...nextKpis[kpi], plan: value as number };
+      }
+    }
+    const nextByPeriod: BranchKpiDataByPeriod = {
+      ...state.branchKpisByPeriod,
+      [period]: nextKpis,
+    };
+
+    markSaved();
+    set({
+      departmentTargets: nextDepartmentTargets,
+      branchKpiTargets: nextBranchKpiTargets,
+      branchKpis: nextKpis,
+      branchKpisByPeriod: nextByPeriod,
+    });
+
+    persistLocal(
+      period,
+      state.data,
+      state.dailyActuals,
+      state.branchDailyActuals,
+      state.departmentDailyActuals,
+      nextDepartmentTargets,
+      nextBranchKpiTargets,
+      nextByPeriod,
+    );
+
+    const saveResult = await saveDashboardState({
+      data: sharedStateFromStore(get()),
+      expectedRevision: sharedRevision,
+    });
+    if (!saveResult.ok) {
+      await applySharedConflict(get, set);
+      throw new Error("Dashboard changed on another device. The latest data was loaded; please review and save again.");
+    }
+    sharedRevision = saveResult.revision;
+  },
+  saveMonthlyKpiActuals: async ({ period, actuals }) => {
+    if (get().role === "staff") return;
+    const state = get();
+    const currentKpis = state.branchKpisByPeriod[period] ?? createBranchKpiSeed();
+    const nextKpis = { ...currentKpis };
+    for (const [k, value] of Object.entries(actuals)) {
+      const kpi = k as Kpi;
+      if (nextKpis[kpi]) nextKpis[kpi] = { ...nextKpis[kpi], result: value as number };
+    }
+    const nextByPeriod: BranchKpiDataByPeriod = { ...state.branchKpisByPeriod, [period]: nextKpis };
+    markSaved();
+    set({ branchKpis: nextKpis, branchKpisByPeriod: nextByPeriod });
+    persistLocal(
+      period,
+      state.data,
+      state.dailyActuals,
+      state.branchDailyActuals,
+      state.departmentDailyActuals,
+      state.departmentTargets,
+      state.branchKpiTargets,
+      nextByPeriod,
+    );
+    const saveResult = await saveDashboardState({
+      data: sharedStateFromStore(get()),
+      expectedRevision: sharedRevision,
+    });
+    if (!saveResult.ok) {
+      await applySharedConflict(get, set);
+      throw new Error("Dashboard changed on another device. The latest data was loaded; please review and save again.");
+    }
+    sharedRevision = saveResult.revision;
   },
   setDepartmentDailyActual: (dep, date, value) => {
     if (get().role === "staff") return;
@@ -531,8 +664,9 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       next,
       get().departmentTargets,
       get().branchKpiTargets,
+      get().branchKpisByPeriod,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   setDepartmentTarget: (dep, value) => {
     if (get().role === "staff") return;
@@ -554,8 +688,9 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       get().departmentDailyActuals,
       next,
       get().branchKpiTargets,
+      get().branchKpisByPeriod,
     );
-    queueSharedSave(get);
+    queueSharedSave(get, set);
   },
   saveBatchDaily: async ({
     period,
@@ -620,8 +755,10 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         }
       : state.branchKpiTargets;
 
-    // 5. Update branchKpis summary
-    const nextBranchKpis = { ...state.branchKpis };
+    // 5. Keep monthly KPI values independent from daily readings.
+    // Daily entries are displayed from branchDailyActuals; monthly actuals are edited separately.
+    const currentBranchKpis = state.branchKpisByPeriod[period] ?? createBranchKpiSeed();
+    const nextBranchKpis = { ...currentBranchKpis };
     if (kpiTargets) {
       Object.entries(kpiTargets).forEach(([k, val]) => {
         const kpiKey = k as Kpi;
@@ -630,12 +767,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         }
       });
     }
-    Object.entries(kpiActuals).forEach(([k, val]) => {
-      const kpiKey = k as Kpi;
-      if (nextBranchKpis[kpiKey]) {
-        nextBranchKpis[kpiKey] = { ...nextBranchKpis[kpiKey], result: val as number };
-      }
-    });
+    const nextBranchKpisByPeriod: BranchKpiDataByPeriod = { ...state.branchKpisByPeriod, [period]: nextBranchKpis };
 
     markSaved();
     set({
@@ -644,6 +776,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       branchDailyActuals: nextKpiDaily,
       branchKpiTargets: nextKpiTargets,
       branchKpis: nextBranchKpis,
+      branchKpisByPeriod: nextBranchKpisByPeriod,
     });
 
     persistLocal(
@@ -654,9 +787,18 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       nextDepDaily,
       nextDepTargets,
       nextKpiTargets,
+      nextBranchKpisByPeriod,
     );
 
-    await saveDashboardState({ data: sharedStateFromStore(get()) });
+    const saveResult = await saveDashboardState({
+      data: sharedStateFromStore(get()),
+      expectedRevision: sharedRevision,
+    });
+    if (!saveResult.ok) {
+      await applySharedConflict(get, set);
+      throw new Error("Dashboard changed on another device. The latest data was loaded; please review and save again.");
+    }
+    sharedRevision = saveResult.revision;
   },
   hydrate: async (silent = false) => {
     if (!silent && get().hydrated) return;
@@ -665,11 +807,17 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     const currentRole = get().role;
     try {
       const shared = await loadDashboardState();
+      sharedRevision = shared.revision;
       // السيرفر قد يحمل أسماء قديمة (مؤشرات أو أقسام) — رحّلها قبل الاستخدام
       migrateNames(shared);
       set({
         ...shared,
         branchKpiTargets: shared.branchKpiTargets ?? {},
+        branchKpisByPeriod:
+          shared.branchKpisByPeriod && Object.keys(shared.branchKpisByPeriod).length
+            ? shared.branchKpisByPeriod
+            : { [shared.period]: shared.branchKpis },
+        branchKpis: shared.branchKpisByPeriod?.[shared.period] ?? shared.branchKpis,
         hydrated: true,
         role: currentRole,
       });
@@ -681,9 +829,10 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         shared.departmentDailyActuals,
         shared.departmentTargets,
         shared.branchKpiTargets ?? {},
+        shared.branchKpisByPeriod?.[shared.period] ?? { [shared.period]: shared.branchKpis },
       );
       try {
-        localStorage.setItem(`${STORAGE_KEY}:branch-kpis`, JSON.stringify(shared.branchKpis));
+        localStorage.setItem(`${STORAGE_KEY}:branch-kpis`, JSON.stringify(shared.branchKpisByPeriod?.[shared.period] ?? shared.branchKpis));
       } catch {
         /* local cache is optional */
       }
@@ -694,6 +843,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     if (!silent) {
       const saved = readSaved();
       let branchKpis = createBranchKpiSeed();
+      let branchKpisByPeriod: BranchKpiDataByPeriod = {};
       try {
         const raw = localStorage.getItem(`${STORAGE_KEY}:branch-kpis`);
         if (raw) branchKpis = JSON.parse(raw) as BranchKpiData;
@@ -701,7 +851,8 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         /* use empty branch KPI targets */
       }
       if (saved) {
-        set({ ...saved, branchKpis, hydrated: true, role: currentRole });
+        branchKpisByPeriod = saved.branchKpisByPeriod ?? { [saved.period]: branchKpis };
+        set({ ...saved, branchKpis: branchKpisByPeriod[saved.period] ?? branchKpis, branchKpisByPeriod, hydrated: true, role: currentRole });
         return;
       }
       persistLocal(
@@ -712,6 +863,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
         get().departmentDailyActuals,
         get().departmentTargets,
         get().branchKpiTargets,
+        get().branchKpisByPeriod,
       );
       set({ hydrated: true });
     }

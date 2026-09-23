@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * `ADMIN_PASSWORD` env var and answers by setting (or not) a signed HttpOnly
  * session cookie.
  */
-export function AdminAuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function AdminAuthDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess?: () => void }) {
   const syncRole = usePerfStore((s) => s.syncRole);
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -44,6 +44,7 @@ export function AdminAuthDialog({ open, onClose }: { open: boolean; onClose: () 
       await syncRole();
       setPassword("");
       onClose();
+      onSuccess?.();
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
