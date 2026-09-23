@@ -25,7 +25,6 @@ import {
   type PeriodBlock,
   type DepartmentDailyActuals,
   type DepartmentTargets,
-  type BranchDailyActuals,
   type BranchKpiDataByPeriod,
   type PeriodId,
   type StatusTone,
@@ -48,7 +47,6 @@ export function ReportsView() {
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
-  const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const meta = periodMeta(period);
   // مثل صفحة Overview: نسبة الفرع = المحقق التراكمي ÷ التراك (مستهدف حتى الأمس)
   const totals = DEPS.reduce(
@@ -116,7 +114,6 @@ export function ReportsView() {
                 departmentTargets,
                 departmentDailyActuals,
                 branchKpisByPeriod,
-                branchDailyActuals,
               )
             }
           >
@@ -342,7 +339,6 @@ function downloadCsv(
   departmentTargets: DepartmentTargets,
   departmentDailyActuals: DepartmentDailyActuals,
   branchKpisByPeriod: BranchKpiDataByPeriod,
-  branchDailyActuals: BranchDailyActuals,
 ) {
   const lines = [["Section", "Measure", "Target", "Actual", "Progress", "Status"]];
   let branchPlanSum = 0;
