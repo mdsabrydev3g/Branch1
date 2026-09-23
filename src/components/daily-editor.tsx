@@ -121,11 +121,11 @@ export function DailyEditor() {
     initDrafts();
   }, [initDrafts, hydrated]);
 
+  // Always require Manager Password before entering edit mode.
+  // Do not bypass the dialog just because this browser has an existing admin session:
+  // the dashboard may be used on a shared workstation.
   const startEdit = () => {
-    if (role !== "manager") { setAuthAction("editDaily"); return; }
-    dirtyRef.current = false;
-    initDrafts();
-    setEditMode(true);
+    setAuthAction("editDaily");
   };
 
   const initTargetDrafts = useCallback(() => {
@@ -147,11 +147,9 @@ export function DailyEditor() {
     setKpiTargetDrafts(nextKpiTargets);
   }, [departmentTargets, branchKpiTargets, branchKpisByPeriod, period]);
 
+  // Always require Manager Password before entering monthly-target edit mode.
   const startMonthlyTargetEdit = () => {
-    if (role !== "manager") { setAuthAction("editMonthlyTarget"); return; }
-    dirtyRef.current = false;
-    initTargetDrafts();
-    setMonthlyTargetEditMode(true);
+    setAuthAction("editMonthlyTarget");
   };
 
   const cancelEdit = () => {
