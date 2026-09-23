@@ -66,9 +66,11 @@ interface PerfState {
   saveBatchDaily: (params: {
     period: PeriodId;
     date: string;
-    depActuals: Partial<Record<Dep, number>>;
+    // null explicitly deletes the reading for this date.
+    depActuals: Partial<Record<Dep, number | null>>;
     depTargets?: Partial<Record<Dep, number>>;
-    kpiActuals: Partial<Record<Kpi, number>>;
+    // null explicitly deletes the reading for this date.
+    kpiActuals: Partial<Record<Kpi, number | null>>;
     kpiTargets?: Partial<Record<Kpi, number>>;
   }) => Promise<void>;
   hydrate: (silent?: boolean) => Promise<void>;
@@ -708,10 +710,11 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     const updatedDepDaily = { ...periodDepDaily };
     Object.entries(depActuals).forEach(([d, val]) => {
       const depKey = d as Dep;
-      updatedDepDaily[depKey] = {
-        ...(updatedDepDaily[depKey] ?? {}),
-        [date]: val as number,
-      };
+      const current = { ...(updatedDepDaily[depKey] ?? {}) };
+      if (val === null) delete current[date];
+      else current[date] = val as number;
+      if (Object.keys(current).length) updatedDepDaily[depKey] = current;
+      else delete updatedDepDaily[depKey];
     });
     const nextDepDaily: DepartmentDailyActuals = {
       ...state.departmentDailyActuals,
@@ -734,10 +737,11 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     const updatedKpiDaily = { ...periodKpiDaily };
     Object.entries(kpiActuals).forEach(([k, val]) => {
       const kpiKey = k as Kpi;
-      updatedKpiDaily[kpiKey] = {
-        ...(updatedKpiDaily[kpiKey] ?? {}),
-        [date]: val as number,
-      };
+      const current = { ...(updatedKpiDaily[kpiKey] ?? {}) };
+      if (val === null) delete current[date];
+      else current[date] = val as number;
+      if (Object.keys(current).length) updatedKpiDaily[kpiKey] = current;
+      else delete updatedKpiDaily[kpiKey];
     });
     const nextKpiDaily: BranchDailyActuals = {
       ...state.branchDailyActuals,
