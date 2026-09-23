@@ -103,7 +103,7 @@ export function DailyEditor() {
     departmentTargets,
     branchDailyActuals,
     branchKpiTargets,
-    branchKpis,
+    branchKpisByPeriod,
   ]);
 
   // عند تغيير الشهر، انتقل تلقائيًا إلى تاريخ صالح داخل الشهر المختار.
