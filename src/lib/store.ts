@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   createSeed,
+  currentPeriodId,
   createBranchKpiSeed,
   type BranchKpiData,
   type Dep,
@@ -317,7 +318,7 @@ function queueSave(
 
 export const usePerfStore = create<PerfState>((set, get) => ({
   view: "overview",
-  period: "2026-09",
+  period: currentPeriodId(),
   data: createSeed(),
   branchKpis: createBranchKpiSeed(),
   dailyActuals: {},
