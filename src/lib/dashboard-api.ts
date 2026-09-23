@@ -109,6 +109,18 @@ export const saveDashboardState = createServerFn({ method: "POST" })
       return { ok: true as const, revision: Number(rows[0]?.revision) || 1 };
     }
 
+    if (expectedRevision === 0) {
+      const inserted = await sql<{ revision: number }>`
+        insert into dashboard_state (state_key, state, revision, updated_at)
+        values ('main', ${JSON.stringify(stateData)}::jsonb, 1, now())
+        on conflict (state_key) do nothing
+        returning revision
+      `;
+      if (inserted[0]) {
+        return { ok: true as const, revision: Number(inserted[0].revision) };
+      }
+    }
+
     const rows = await sql<{ revision: number }>`
       update dashboard_state
       set state = ${JSON.stringify(stateData)}::jsonb,
