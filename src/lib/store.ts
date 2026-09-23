@@ -58,6 +58,11 @@ interface PerfState {
   setDepartmentDailyActual: (dep: Dep, date: string, value: number) => void;
   setDepartmentTarget: (dep: Dep, value: number) => void;
   saveMonthlyKpiActuals: (params: { period: PeriodId; actuals: Partial<Record<Kpi, number>> }) => Promise<void>;
+  saveMonthlyTargets: (params: {
+    period: PeriodId;
+    depTargets: Partial<Record<Dep, number>>;
+    kpiTargets: Partial<Record<Kpi, number>>;
+  }) => Promise<void>;
   saveBatchDaily: (params: {
     period: PeriodId;
     date: string;
@@ -541,6 +546,68 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       nextKpisByPeriod,
     );
     queueSharedSave(get, set);
+  },
+  saveMonthlyTargets: async ({ period, depTargets, kpiTargets }) => {
+    if (get().role === "staff") return;
+    const state = get();
+
+    const nextDepartmentTargets: DepartmentTargets = {
+      ...state.departmentTargets,
+      [period]: {
+        ...(state.departmentTargets[period] ?? {}),
+        ...depTargets,
+      },
+    };
+
+    const nextBranchKpiTargets: BranchKpiTargets = {
+      ...state.branchKpiTargets,
+      [period]: {
+        ...(state.branchKpiTargets[period] ?? {}),
+        ...kpiTargets,
+      },
+    };
+
+    const currentKpis = state.branchKpisByPeriod[period] ?? createBranchKpiSeed();
+    const nextKpis = { ...currentKpis };
+    for (const [k, value] of Object.entries(kpiTargets)) {
+      const kpi = k as Kpi;
+      if (nextKpis[kpi]) {
+        nextKpis[kpi] = { ...nextKpis[kpi], plan: value as number };
+      }
+    }
+    const nextByPeriod: BranchKpiDataByPeriod = {
+      ...state.branchKpisByPeriod,
+      [period]: nextKpis,
+    };
+
+    markSaved();
+    set({
+      departmentTargets: nextDepartmentTargets,
+      branchKpiTargets: nextBranchKpiTargets,
+      branchKpis: nextKpis,
+      branchKpisByPeriod: nextByPeriod,
+    });
+
+    persistLocal(
+      period,
+      state.data,
+      state.dailyActuals,
+      state.branchDailyActuals,
+      state.departmentDailyActuals,
+      nextDepartmentTargets,
+      nextBranchKpiTargets,
+      nextByPeriod,
+    );
+
+    const saveResult = await saveDashboardState({
+      data: sharedStateFromStore(get()),
+      expectedRevision: sharedRevision,
+    });
+    if (!saveResult.ok) {
+      await applySharedConflict(get, set);
+      throw new Error("Dashboard changed on another device. The latest data was loaded; please review and save again.");
+    }
+    sharedRevision = saveResult.revision;
   },
   saveMonthlyKpiActuals: async ({ period, actuals }) => {
     if (get().role === "staff") return;
