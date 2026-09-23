@@ -16,6 +16,7 @@ import {
   formatPct,
   getDaysInMonth,
   getTrackDay,
+  latestDailyValue,
   KPIS,
   periodMeta,
   ratio,
@@ -47,6 +48,7 @@ export function ReportsView() {
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
+  const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const meta = periodMeta(period);
   // مثل صفحة Overview: نسبة الفرع = المحقق التراكمي ÷ التراك (مستهدف حتى الأمس)
   const totals = DEPS.reduce(
@@ -114,6 +116,7 @@ export function ReportsView() {
                 departmentTargets,
                 departmentDailyActuals,
                 branchKpisByPeriod,
+                branchDailyActuals,
               )
             }
           >
@@ -216,13 +219,14 @@ export function ReportsView() {
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {KPIS.map((kpi) => {
-            // Monthly KPI Actual is independent from Daily readings.
-            const enteredActual = branchKpisByPeriod[period]?.[kpi]?.result ?? 0;
+            // Branch KPI Actual is driven by the corresponding Daily KPI reading.
+            // Use the latest saved cumulative reading, including today's entry.
             const enteredPlan = branchKpisByPeriod[period]?.[kpi]?.plan ?? 0;
-            // Gross: عند عدم إدخاله يعادل إجمالي الأقسام تلقائياً (مثل صفحة Overview)
+            const dailyKpi = branchDailyActuals[period]?.[kpi] ?? {};
+            const enteredActual = latestDailyValue(dailyKpi);
             const isGross = kpi === "Gross";
             const target = isGross && enteredPlan === 0 ? totals.plan : enteredPlan;
-            const actual = isGross && enteredActual === 0 ? totals.result : enteredActual;
+            const actual = enteredActual;
             const r = ratio({ plan: target, result: actual });
             return (
               <article key={kpi} className="rounded-xl border border-border bg-card-2/70 p-3">
