@@ -26,6 +26,7 @@ import {
   type DepartmentDailyActuals,
   type DepartmentTargets,
   type BranchDailyActuals,
+  type BranchKpiDataByPeriod,
   type PeriodId,
   type StatusTone,
 } from "@/lib/domain";
@@ -114,7 +115,7 @@ export function ReportsView() {
                 period,
                 departmentTargets,
                 departmentDailyActuals,
-                branchKpis,
+                branchKpisByPeriod,
                 branchDailyActuals,
               )
             }
@@ -343,7 +344,7 @@ function downloadCsv(
   period: PeriodId,
   departmentTargets: DepartmentTargets,
   departmentDailyActuals: DepartmentDailyActuals,
-  branchKpis: Record<string, { plan: number; result: number }>,
+  branchKpisByPeriod: BranchKpiDataByPeriod,
   branchDailyActuals: BranchDailyActuals,
 ) {
   const lines = [["Section", "Measure", "Target", "Actual", "Progress", "Status"]];
