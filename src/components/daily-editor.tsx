@@ -263,8 +263,8 @@ export function DailyEditor() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-border bg-card/80 p-5 backdrop-blur-sm">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              Manager Mode ●
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+              Daily Control
             </span>
             <span className="text-xs text-subtle">Period: {period}</span>
           </div>
@@ -333,11 +333,11 @@ export function DailyEditor() {
           ) : (
             <Button variant="outline" onClick={startAddDaily} className="flex items-center gap-2 px-4 py-2.5">
               <Save className="size-4" />
-              إضافة محقق يومي
+              إضافة يوم
             </Button>
             <Button onClick={startEdit} className="flex items-center gap-2 px-5 py-2.5 shadow-lg">
               <Pencil className="size-4" />
-              تعديل المحقق اليومي
+              تعديل اليوم
             </Button>
           )}
         </div>
@@ -347,7 +347,7 @@ export function DailyEditor() {
         <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Monthly KPI Actuals</h2>
-            <p className="mt-1 text-xs text-subtle">المحقق الشهري مستقل عن المحقق اليومي ولكل شهر بياناته الخاصة.</p>
+            <p className="mt-1 text-xs text-subtle">المحقق الشهري مستقل عن اليومي ولكل شهر بياناته الخاصة.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {monthlyEditMode ? (
@@ -357,8 +357,8 @@ export function DailyEditor() {
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={() => startMonthlyEdit("add")} className="flex items-center gap-2"><Save className="size-4" />إضافة المحقق الشهري</Button>
-                <Button onClick={() => startMonthlyEdit("edit")} className="flex items-center gap-2"><Pencil className="size-4" />تعديل المحقق الشهري</Button>
+                <Button variant="outline" onClick={() => startMonthlyEdit("add")} className="flex items-center gap-2"><Save className="size-4" />إضافة شهري</Button>
+                <Button onClick={() => startMonthlyEdit("edit")} className="flex items-center gap-2"><Pencil className="size-4" />تعديل الشهري</Button>
               </>
             )}
           </div>
