@@ -17,6 +17,7 @@ export type SharedDashboardState = {
   period: PeriodId;
   data: PerformanceData;
   branchKpis: BranchKpiData;
+  branchKpisByPeriod: Partial<Record<PeriodId, BranchKpiData>>;
   dailyActuals: DailyActuals;
   branchDailyActuals: BranchDailyActuals;
   departmentDailyActuals: DepartmentDailyActuals;
@@ -33,6 +34,7 @@ const stateSchema = z.object({
   departmentDailyActuals: z.record(z.string(), z.unknown()),
   departmentTargets: z.record(z.string(), z.unknown()),
   branchKpiTargets: z.record(z.string(), z.unknown()).optional(),
+  branchKpisByPeriod: z.record(z.string(), z.unknown()).optional(),
 });
 
 function defaultState(): SharedDashboardState {
@@ -45,6 +47,7 @@ function defaultState(): SharedDashboardState {
     departmentDailyActuals: {},
     departmentTargets: {},
     branchKpiTargets: {},
+    branchKpisByPeriod: {},
   };
 }
 
