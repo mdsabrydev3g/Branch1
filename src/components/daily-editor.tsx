@@ -35,7 +35,7 @@ import {
  */
 export function DailyEditor() {
   const role = usePerfStore((s) => s.role);
-  const [managerOpen, setManagerOpen] = useState(false);
+  const [authAction, setAuthAction] = useState<"addDaily" | "editDaily" | "addMonthly" | "editMonthly" | null>(null);
   const period = usePerfStore((s) => s.period);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
@@ -142,14 +142,14 @@ export function DailyEditor() {
   }, [initDrafts, hydrated]);
 
   const startEdit = () => {
-    if (role !== "manager") { setManagerOpen(true); return; }
+    if (role !== "manager") { setAuthAction("editDaily"); return; }
     dirtyRef.current = false;
     initDrafts();
     setEditMode(true);
   };
 
   const startAddDaily = () => {
-    if (role !== "manager") { setManagerOpen(true); return; }
+    if (role !== "manager") { setAuthAction("addDaily"); return; }
     dirtyRef.current = false;
     setDepActualDrafts({});
     setKpiActualDrafts({});
@@ -157,7 +157,7 @@ export function DailyEditor() {
   };
 
   const startMonthlyEdit = (mode: "add" | "edit") => {
-    if (role !== "manager") { setManagerOpen(true); return; }
+    if (role !== "manager") { setAuthAction(mode === "add" ? "addMonthly" : "editMonthly"); return; }
     initDrafts();
     if (mode === "add") setMonthlyKpiDrafts({});
     setMonthlyEditMode(true);
@@ -602,7 +602,18 @@ export function DailyEditor() {
         </section>
       )}
 
-      <AdminAuthDialog open={managerOpen} onClose={() => setManagerOpen(false)} />
+      <AdminAuthDialog
+        open={authAction !== null}
+        onClose={() => setAuthAction(null)}
+        onSuccess={() => {
+          const action = authAction;
+          setAuthAction(null);
+          if (action === "addDaily") startAddDaily();
+          else if (action === "editDaily") startEdit();
+          else if (action === "addMonthly") startMonthlyEdit("add");
+          else if (action === "editMonthly") startMonthlyEdit("edit");
+        }}
+      />
     </div>
   );
 }
