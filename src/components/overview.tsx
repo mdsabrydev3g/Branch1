@@ -44,7 +44,6 @@ export function OverviewView() {
   const period = usePerfStore((s) => s.period);
   const departmentDailyActuals = usePerfStore((s) => s.departmentDailyActuals);
   const departmentTargets = usePerfStore((s) => s.departmentTargets);
-  const branchDailyActuals = usePerfStore((s) => s.branchDailyActuals);
   const branchKpiTargets = usePerfStore((s) => s.branchKpiTargets);
   const branchKpisByPeriod = usePerfStore((s) => s.branchKpisByPeriod);
 
