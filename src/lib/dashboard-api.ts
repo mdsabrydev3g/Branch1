@@ -10,7 +10,7 @@ import type {
   PerformanceData,
   PeriodId,
 } from "@/lib/domain";
-import { createBranchKpiSeed, createSeed } from "@/lib/domain";
+import { createBranchKpiSeed, createSeed, currentPeriodId } from "@/lib/domain";
 import { requireAdmin } from "@/lib/auth/roles.server";
 
 export type SharedDashboardState = {
@@ -37,7 +37,7 @@ const stateSchema = z.object({
 
 function defaultState(): SharedDashboardState {
   return {
-    period: "2026-09",
+    period: currentPeriodId(),
     data: createSeed(),
     branchKpis: createBranchKpiSeed(),
     dailyActuals: {},
