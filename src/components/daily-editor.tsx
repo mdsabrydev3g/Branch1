@@ -195,21 +195,20 @@ export function DailyEditor() {
     setSaveStatus("saving");
 
     try {
-      const depActuals: Partial<Record<Dep, number>> = {};
+      const depActuals: Partial<Record<Dep, number | null>> = {};
       DEPS.forEach((dep) => {
-        // الخانة الفارغة تعني "بدون تغيير" — لا نكتب صفراً فوق المحقق المحفوظ
+        // Empty input means delete the reading for the selected date.
         const actStr = depActualDrafts[dep] ?? "";
-        if (actStr.trim() !== "") {
-          depActuals[dep] = parseFloat(actStr.replace(/,/g, "")) || 0;
-        }
+        depActuals[dep] =
+          actStr.trim() === "" ? null : parseFloat(actStr.replace(/,/g, "")) || 0;
       });
 
-      const kpiActuals: Partial<Record<Kpi, number>> = {};
+      const kpiActuals: Partial<Record<Kpi, number | null>> = {};
       KPIS.forEach((kpi) => {
+        // Empty input means delete the reading for the selected date.
         const actStr = kpiActualDrafts[kpi] ?? "";
-        if (actStr.trim() !== "") {
-          kpiActuals[kpi] = parseFloat(actStr.replace(/,/g, "")) || 0;
-        }
+        kpiActuals[kpi] =
+          actStr.trim() === "" ? null : parseFloat(actStr.replace(/,/g, "")) || 0;
       });
 
       await saveBatchDaily({
