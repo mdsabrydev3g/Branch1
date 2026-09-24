@@ -157,18 +157,7 @@ function MultiDepDetails({
               return (
                 <tr key={r.date} className="text-xs">
                   <td colSpan={5} className="p-0">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setOpenDate(open ? null : r.date)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setOpenDate(open ? null : r.date);
-                        }
-                      }}
-                      className="flex cursor-pointer items-center gap-2 px-2 py-2.5 transition-colors hover:bg-card-2/30"
-                    >
+                    <button type="button" onClick={() => setOpenDate(open ? null : r.date)} aria-expanded={open} className="flex w-full cursor-pointer items-center gap-2 px-2 py-2.5 text-left transition-colors hover:bg-card-2/30">
                       <span className="w-[16%] font-mono tabular-nums text-muted">{r.date.slice(5)}</span>
                       <span className="w-[22%] text-right font-mono tabular-nums text-foreground">{formatNumber(r.dailyActual)}</span>
                       <span className={cn("w-[18%] text-right font-mono font-semibold tabular-nums", toneTextClass(r.tone))}>{r.tone === "none" ? "—" : formatPct1(r.pct)}</span>
