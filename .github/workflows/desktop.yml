@@ -30,7 +30,8 @@ jobs:
         working-directory: apps/desktop
         run: |
           npm install
-          npx tauri build --config src-tauri/tauri.conf.json
+          cd src-tauri
+          ..\node_modules\.bin\tauri.cmd build
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:
