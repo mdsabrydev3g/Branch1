@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   DEP_SHORT,
   dailyDiffAt,
@@ -17,6 +17,7 @@ import {
   computeStats,
   formatPct1,
   PerfPill,
+  Metric,
   toneTextClass,
   type PerfTone,
 } from "@/components/sales-common";
@@ -121,6 +122,8 @@ function MultiDepDetails({
   }[];
   daysInMonth: number;
 }) {
+  const [openDate, setOpenDate] = useState<string | null>(null);
+
   const halfLabel = (h: "H1" | "H2") =>
     h === "H1"
       ? `Half 1 — Days 1-${HALF1_DAYS}`
@@ -136,107 +139,90 @@ function MultiDepDetails({
 
   return (
     <>
-      {/* Desktop / Tablet — جدول واحد للأجزاء الأربعة */}
+      {/* Desktop / Tablet — Accordion per day */}
       <div className="hidden md:block">
         <table className="w-full table-fixed text-left">
           <thead>
             <tr className="border-b border-border text-2xs uppercase tracking-wider text-subtle">
-              <th className="w-[10%] py-2 pr-2 font-semibold">Date</th>
-              <th className="w-[6%] px-1 py-2 font-semibold">Half</th>
-              {MOBILE_DEPS.map((dep) => (
-                <th key={dep} className="w-[11%] px-1 py-2 text-right font-semibold">
-                  {DEP_SHORT[dep]}
-                </th>
-              ))}
-              <th className="w-[11%] px-1 py-2 text-right font-semibold">Day Total</th>
-              <th className="w-[12%] px-1 py-2 text-right font-semibold">Cum</th>
-              <th className="w-[9%] px-1 py-2 text-right font-semibold">%</th>
-              <th className="w-[9%] py-2 pl-1 text-right font-semibold">Status</th>
+              <th className="w-[16%] py-2 pr-2 font-semibold">Date</th>
+              <th className="w-[22%] px-1 py-2 text-right font-semibold">Daily</th>
+              <th className="w-[18%] px-1 py-2 text-right font-semibold">%</th>
+              <th className="w-[34%] px-1 py-2 text-right font-semibold">Status</th>
+              <th className="w-[10%] py-2 text-right font-semibold"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((r) => (
-              <tr key={r.date} className="text-xs transition-colors hover:bg-card-2/30">
-                <td className="py-2.5 pr-2 font-mono tabular-nums text-muted">{r.date.slice(5)}</td>
-                <td className="px-1 py-2.5 text-2xs font-semibold text-subtle">{r.half}</td>
-                {r.perDep.map((p) => (
-                  <td
-                    key={p.dep}
-                    className="px-1 py-2.5 text-right font-mono tabular-nums text-foreground"
-                  >
-                    {formatNumber(p.daily)}
+            {rows.map((r) => {
+              const open = openDate === r.date;
+              return (
+                <tr key={r.date} className="text-xs">
+                  <td colSpan={5} className="p-0">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setOpenDate(open ? null : r.date)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setOpenDate(open ? null : r.date);
+                        }
+                      }}
+                      className="flex cursor-pointer items-center gap-2 px-2 py-2.5 transition-colors hover:bg-card-2/30"
+                    >
+                      <span className="w-[16%] font-mono tabular-nums text-muted">{r.date.slice(5)}</span>
+                      <span className="w-[22%] text-right font-mono tabular-nums text-foreground">{formatNumber(r.dailyActual)}</span>
+                      <span className={cn("w-[18%] text-right font-mono font-semibold tabular-nums", toneTextClass(r.tone))}>{r.tone === "none" ? "—" : formatPct1(r.pct)}</span>
+                      <span className="flex w-[34%] items-center justify-end gap-2"><PerfPill tone={r.tone} compact /></span>
+                      <span className="w-[10%] text-right text-xs text-subtle">{open ? "−" : "+"}</span>
+                    </div>
+                    {open && (
+                      <div className="grid grid-cols-2 gap-2 border-t border-border bg-card-2/20 px-2 py-2 sm:grid-cols-4">
+                        {r.perDep.map((p) => (
+                          <Metric label={DEP_SHORT[p.dep]} value={formatNumber(p.daily)} key={p.dep} />
+                        ))}
+                        <Metric label="Day Total" value={formatNumber(r.dailyActual)} />
+                        <Metric label="Cumulative" value={formatNumber(r.cumulative)} />
+                        <Metric label="Track" value={formatNumber(r.track)} />
+                        <Metric label="Status" value={r.tone === "none" ? "—" : r.tone === "excellent" ? "Excellent" : r.tone === "vgood" ? "V.Good" : r.tone === "good" ? "Good" : r.tone === "willdo" ? "Will Do" : "Danger"} />
+                      </div>
+                    )}
                   </td>
-                ))}
-                <td className="px-1 py-2.5 text-right font-mono font-semibold tabular-nums text-foreground">
-                  {formatNumber(r.dailyActual)}
-                </td>
-                <td className="px-1 py-2.5 text-right font-mono font-semibold tabular-nums text-foreground">
-                  {formatNumber(r.cumulative)}
-                </td>
-                <td
-                  className={cn(
-                    "px-1 py-2.5 text-right font-mono font-semibold tabular-nums",
-                    toneTextClass(r.tone),
-                  )}
-                >
-                  {r.tone === "none" ? "—" : formatPct1(r.pct)}
-                </td>
-                <td className="py-2 pl-1 text-right">
-                  <PerfPill tone={r.tone} compact />
-                </td>
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* Mobile — كروت بلا أي سكرول أفقي */}
-      <div className="space-y-4 md:hidden">
-        {(["H1", "H2"] as const)
-          .filter((h) => rows.some((r) => r.half === h))
-          .map((half) => (
-            <div key={half}>
-              <div className="mb-2 text-2xs font-semibold uppercase tracking-wider text-subtle">
-                {halfLabel(half)}
-              </div>
-              <div className="space-y-2">
-                {rows
-                  .filter((r) => r.half === half)
-                  .map((r) => (
-                    <div key={r.date} className="rounded-xl border border-border bg-card-2/40 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
-                          {r.date}
-                        </span>
-                        <PerfPill tone={r.tone} compact />
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-1.5">
-                        {r.perDep.map((p) => (
-                          <div key={p.dep} className="rounded-lg bg-card/80 px-2 py-1.5">
-                            <div className="text-2xs text-subtle">{DEP_SHORT[p.dep]}</div>
-                            <div className="font-mono text-xs font-semibold tabular-nums text-foreground">
-                              {formatNumber(p.daily)}
-                            </div>
-                          </div>
-                        ))}
-                        <div className="rounded-lg bg-primary/10 px-2 py-1.5">
-                          <div className="text-2xs text-subtle">Day Total</div>
-                          <div className="font-mono text-xs font-bold tabular-nums text-foreground">
-                            {formatNumber(r.dailyActual)}
-                          </div>
-                        </div>
-                        <div className="rounded-lg bg-card/80 px-2 py-1.5">
-                          <div className="text-2xs text-subtle">Cumulative</div>
-                          <div className="font-mono text-xs font-semibold tabular-nums text-foreground">
-                            {formatNumber(r.cumulative)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
+      {/* Mobile — Accordion per day */}
+      <div className="space-y-2 md:hidden">
+        {rows.map((r) => {
+          const open = openDate === r.date;
+          return (
+            <div key={r.date} className="overflow-hidden rounded-xl border border-border bg-card-2/40">
+              <button
+                type="button"
+                onClick={() => setOpenDate(open ? null : r.date)}
+                className="flex w-full items-center gap-2 p-3 text-left"
+                aria-expanded={open}
+              >
+                <span className="min-w-0 flex-1 font-mono text-xs font-semibold tabular-nums text-foreground">{r.date}</span>
+                <span className="font-mono text-xs font-semibold tabular-nums text-foreground">{formatNumber(r.dailyActual)}</span>
+                <span className={cn("font-mono text-xs font-semibold tabular-nums", toneTextClass(r.tone))}>{r.tone === "none" ? "—" : formatPct1(r.pct)}</span>
+                <span className="text-xs text-subtle">{open ? "−" : "+"}</span>
+              </button>
+              {open && (
+                <div className="grid grid-cols-2 gap-1.5 border-t border-border p-3">
+                  {r.perDep.map((p) => <Metric label={DEP_SHORT[p.dep]} value={formatNumber(p.daily)} key={p.dep} />)}
+                  <Metric label="Day Total" value={formatNumber(r.dailyActual)} />
+                  <Metric label="Cumulative" value={formatNumber(r.cumulative)} />
+                  <Metric label="Track" value={formatNumber(r.track)} />
+                  <Metric label="Status" value={r.tone === "none" ? "—" : r.tone === "excellent" ? "Excellent" : r.tone === "vgood" ? "V.Good" : r.tone === "good" ? "Good" : r.tone === "willdo" ? "Will Do" : "Danger"} />
+                </div>
+              )}
             </div>
-          ))}
+          );
+        })}
       </div>
     </>
   );
