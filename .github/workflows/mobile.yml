@@ -59,7 +59,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npm run build
       - name: Prepare Capacitor web bundle
         run: |
