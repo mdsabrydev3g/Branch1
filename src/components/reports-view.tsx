@@ -17,6 +17,7 @@ import {
   getDaysInMonth,
   getTrackDay,
   latestDailyValue,
+  firstHalfActualFromDaily,
   KPIS,
   periodMeta,
   ratio,
@@ -166,49 +167,33 @@ export function ReportsView() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-      {DEPS.map((dep) => {
-        const desk = sumBlock(block[dep]);
-        const daily = departmentDailyActuals[period]?.[dep] ?? {};
-        const deskTarget = departmentTargets[period]?.[dep] ?? desk.plan;
-        const deskActual =
-          Object.keys(daily).length > 0 ? cumAtDay(daily, getTrackDay(period)) : desk.result;
-        const track = calculateTrackTarget(deskTarget, period);
-        const trackRatio = ratio({ plan: track, result: deskActual });
-        return (
-          <section
-            key={dep}
-            className="hairline print-surface rounded-2xl bg-card/80 p-4"
-          >
-            <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
-              <div>
-                <h2 className="text-sm font-medium text-foreground">
-                  {DEP_COPY[dep].title}
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-sm tabular-nums text-muted">
-                  {formatPct(trackRatio)}
-                </span>
-                <StatusPill ratio={trackRatio} report />
-              </div>
+      <section className="space-y-4">
+        {SALES_GROUPS.map((group) => (
+          <div key={group.id} className="space-y-3">
+            <ReportUnitCard
+              title={group.title}
+              deps={group.deps}
+              period={period}
+              block={block}
+              departmentTargets={departmentTargets}
+              departmentDailyActuals={departmentDailyActuals}
+              highlight
+            />
+            <div className="grid gap-4 md:grid-cols-2">
+              {group.deps.map((dep) => (
+                <ReportUnitCard
+                  key={dep}
+                  title={DEP_COPY[dep].title}
+                  deps={[dep]}
+                  period={period}
+                  block={block}
+                  departmentTargets={departmentTargets}
+                  departmentDailyActuals={departmentDailyActuals}
+                />
+              ))}
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Summary label="Target" value={formatNumber(deskTarget)} />
-              <Summary label="Track" value={formatNumber(track)} />
-              <Summary label="Actual" value={formatNumber(deskActual)} />
-              <Summary label="Remaining" value={formatNumber(calculateRemaining(deskTarget, deskActual))} />
-            </div>
-            <div className="mt-3">
-              <ProgressBar value={trackRatio} />
-              <div className="mt-1 flex justify-between text-xs text-subtle">
-                <span>Actual / Track</span>
-                <span className="font-mono">{formatPct(trackRatio)}</span>
-              </div>
-            </div>
-          </section>
-        );
-      })}
+          </div>
+        ))}
       </section>
 
       <section className="hairline print-surface rounded-2xl bg-card/80 p-4">
@@ -254,6 +239,86 @@ export function ReportsView() {
         </div>
       </section>
     </div>
+  );
+}
+
+function ReportUnitCard({
+  title,
+  deps,
+  period,
+  block,
+  departmentTargets,
+  departmentDailyActuals,
+  highlight = false,
+}: {
+  title: string;
+  deps: typeof DEPS[number][];
+  period: PeriodId;
+  block: PeriodBlock;
+  departmentTargets: DepartmentTargets;
+  departmentDailyActuals: DepartmentDailyActuals;
+  highlight?: boolean;
+}) {
+  const target = deps.reduce((sum, dep) => {
+    const fallback = sumBlock(block[dep]);
+    return sum + (departmentTargets[period]?.[dep] ?? fallback.plan);
+  }, 0);
+
+  const daily = useMemo(() => {
+    const merged: Record<string, number> = {};
+    for (const dep of deps) {
+      const source = departmentDailyActuals[period]?.[dep] ?? {};
+      for (const [date, value] of Object.entries(source)) {
+        merged[date] = (merged[date] || 0) + (Number(value) || 0);
+      }
+    }
+    return merged;
+  }, [deps, departmentDailyActuals, period]);
+
+  const actual = Object.keys(daily).length
+    ? cumAtDay(daily, getTrackDay(period))
+    : deps.reduce((sum, dep) => sum + sumBlock(block[dep]).result, 0);
+  const track = calculateTrackTarget(target, period);
+  const r = ratio({ plan: track, result: actual });
+  const half1 = Object.keys(daily).length
+    ? firstHalfActualFromDaily(daily)
+    : 0;
+
+  return (
+    <section className={cn(
+      "hairline print-surface rounded-2xl bg-card/80 p-4",
+      highlight && "border-primary/30 ring-1 ring-primary/20"
+    )}>
+      <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          {highlight && <p className="mt-0.5 text-xs text-subtle">Combined total</p>}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={cn("font-mono text-sm font-semibold tabular-nums", TONE_TEXT[statusOf(r).tone])}>
+            {formatPct(r)}
+          </span>
+          <StatusPill ratio={r} report />
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Summary label="Target" value={formatNumber(target)} />
+        <Summary label="Track" value={formatNumber(track)} />
+        <Summary label="Actual" value={formatNumber(actual)} />
+        <Summary label="Remaining" value={formatNumber(calculateRemaining(target, actual))} />
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <Summary label="Half1" value={formatNumber(half1)} />
+        <Summary label="Daily Target" value={formatNumber(target / getDaysInMonth(period))} />
+      </div>
+      <div className="mt-3">
+        <ProgressBar value={r} />
+        <div className="mt-1 flex justify-between text-xs text-subtle">
+          <span>Actual / Track</span>
+          <span className={cn("font-mono font-semibold", TONE_TEXT[statusOf(r).tone])}>{formatPct(r)}</span>
+        </div>
+      </div>
+    </section>
   );
 }
 
