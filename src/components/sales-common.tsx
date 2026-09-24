@@ -220,8 +220,13 @@ export function HalfCard({
   frozen: boolean;
   checkpointPct: number;
 }) {
+  // Half 1 becomes an accordion only after day 15 (when it is frozen).
+  // Half 2 is always expanded and is never an accordion.
+  const isAccordion = frozen;
   const [open, setOpen] = useState(false);
-  const toggleOpen = () => setOpen((v) => !v);
+  const toggleOpen = () => {
+    if (isAccordion) setOpen((v) => !v);
+  };
 
   const { tone, pct } = perfOf(actual, track);
   const cpTarget = checkpointPct === 0.8
@@ -232,11 +237,25 @@ export function HalfCard({
 
   return (
     <section className="hairline gradient-border rounded-2xl bg-card/90 p-4 sm:p-5">
-      <button
-        type="button"
-        onClick={toggleOpen}
-        className="relative z-10 flex w-full cursor-pointer items-center justify-between gap-3 text-left select-none"
-        aria-expanded={open}
+      <div
+        role={isAccordion ? "button" : undefined}
+        tabIndex={isAccordion ? 0 : undefined}
+        onClick={isAccordion ? toggleOpen : undefined}
+        onKeyDown={
+          isAccordion
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleOpen();
+                }
+              }
+            : undefined
+        }
+        className={cn(
+          "relative z-10 flex w-full items-center justify-between gap-3 text-left select-none",
+          isAccordion && "cursor-pointer",
+        )}
+        aria-expanded={isAccordion ? open : undefined}
       >
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -262,9 +281,9 @@ export function HalfCard({
           )}
           <span className="text-xs text-subtle">{open ? "−" : "+"}</span>
         </div>
-      </button>
+      </div>
 
-      {open && (
+      {(!isAccordion || open) && (
         <div className="mt-3 border-t border-border pt-3">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Metric label="Target" value={formatNumber(target)} fit={target} />
@@ -319,6 +338,7 @@ export function DailyDetails({
   rows: SalesRow[];
   daysInMonth: number;
 }) {
+  const [openDate, setOpenDate] = useState<string | null>(null);
   const halfLabel = (h: "H1" | "H2") =>
     h === "H1"
       ? `Half 1 — Days 1-${HALF1_DAYS}`
@@ -339,102 +359,92 @@ export function DailyDetails({
         <table className="w-full table-fixed text-left">
           <thead>
             <tr className="border-b border-border text-2xs uppercase tracking-wider text-subtle">
-              <th className="w-[13%] py-2 pr-2 font-semibold">Date</th>
-              <th className="w-[9%] px-1 py-2 font-semibold">Half</th>
-              <th className="w-[15%] px-1 py-2 text-right font-semibold">Daily</th>
-              <th className="w-[17%] px-1 py-2 text-right font-semibold">Cumulative</th>
-              <th className="w-[17%] px-1 py-2 text-right font-semibold">Track</th>
-              <th className="w-[11%] px-1 py-2 text-right font-semibold">%</th>
-              <th className="w-[18%] py-2 pl-1 text-right font-semibold">Status</th>
+              <th className="w-[18%] py-2 pr-2 font-semibold">Date</th>
+              <th className="w-[22%] px-1 py-2 text-right font-semibold">Daily</th>
+              <th className="w-[20%] px-1 py-2 text-right font-semibold">%</th>
+              <th className="w-[40%] px-1 py-2 text-right font-semibold">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((r) => (
-              <tr key={r.date} className="text-xs transition-colors hover:bg-card-2/30">
-                <td className="py-2.5 pr-2 font-mono tabular-nums text-muted">{r.date.slice(5)}</td>
-                <td className="px-1 py-2.5 text-2xs font-semibold text-subtle">{r.half}</td>
-                <td className="px-1 py-2.5 text-right font-mono tabular-nums text-foreground">
-                  {formatNumber(r.dailyActual)}
-                </td>
-                <td className="px-1 py-2.5 text-right font-mono font-semibold tabular-nums text-foreground">
-                  {formatNumber(r.cumulative)}
-                </td>
-                <td className="px-1 py-2.5 text-right font-mono tabular-nums text-muted">
-                  {formatNumber(r.track)}
-                </td>
-                <td
-                  className={cn(
-                    "px-1 py-2.5 text-right font-mono font-semibold tabular-nums",
-                    toneTextClass(r.tone),
-                  )}
-                >
-                  {r.tone === "none" ? "—" : formatPct1(r.pct)}
-                </td>
-                <td className="py-2 pl-1 text-right">
-                  <PerfPill tone={r.tone} compact />
-                </td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const open = openDate === r.date;
+              return (
+                <tr key={r.date} className="text-xs">
+                  <td colSpan={4} className="p-0">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setOpenDate(open ? null : r.date)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setOpenDate(open ? null : r.date);
+                        }
+                      }}
+                      className="flex cursor-pointer items-center gap-3 px-2 py-2.5 transition-colors hover:bg-card-2/30"
+                    >
+                      <span className="w-[18%] font-mono tabular-nums text-muted">{r.date.slice(5)}</span>
+                      <span className="w-[22%] text-right font-mono tabular-nums text-foreground">
+                        {formatNumber(r.dailyActual)}
+                      </span>
+                      <span className={cn("w-[20%] text-right font-mono font-semibold tabular-nums", toneTextClass(r.tone))}>
+                        {r.tone === "none" ? "—" : formatPct1(r.pct)}
+                      </span>
+                      <span className="flex w-[40%] items-center justify-end gap-2">
+                        <PerfPill tone={r.tone} compact />
+                        <span className="text-xs text-subtle">{open ? "−" : "+"}</span>
+                      </span>
+                    </div>
+                    {open && (
+                      <div className="grid grid-cols-4 gap-2 border-t border-border bg-card-2/20 px-2 py-2">
+                        <Metric label="Half" value={r.half} />
+                        <Metric label="Cumulative" value={formatNumber(r.cumulative)} />
+                        <Metric label="Track" value={formatNumber(r.track)} />
+                        <Metric label="Status" value={r.tone === "none" ? "—" : r.tone === "excellent" ? "Excellent" : r.tone === "vgood" ? "V.Good" : r.tone === "good" ? "Good" : r.tone === "willdo" ? "Will Do" : "Danger"} />
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* Mobile — كروت بدل الجدول: بلا أي سكرول أفقي */}
-      <div className="space-y-4 md:hidden">
-        {(["H1", "H2"] as const)
-          .filter((h) => rows.some((r) => r.half === h))
-          .map((half) => (
-            <div key={half}>
-              <div className="mb-2 text-2xs font-semibold uppercase tracking-wider text-subtle">
-                {halfLabel(half)}
-              </div>
-              <div className="space-y-2">
-                {rows
-                  .filter((r) => r.half === half)
-                  .map((r) => (
-                    <div key={r.date} className="rounded-xl border border-border bg-card-2/40 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
-                          {r.date}
-                        </span>
-                        <PerfPill tone={r.tone} compact />
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-1.5">
-                        <div className="rounded-lg bg-card/80 px-2 py-1.5">
-                          <div className="text-2xs text-subtle">Daily</div>
-                          <div className="font-mono text-xs font-semibold tabular-nums text-foreground">
-                            {formatNumber(r.dailyActual)}
-                          </div>
-                        </div>
-                        <div className="rounded-lg bg-card/80 px-2 py-1.5">
-                          <div className="text-2xs text-subtle">Cumulative</div>
-                          <div className="font-mono text-xs font-semibold tabular-nums text-foreground">
-                            {formatNumber(r.cumulative)}
-                          </div>
-                        </div>
-                        <div className="rounded-lg bg-card/80 px-2 py-1.5">
-                          <div className="text-2xs text-subtle">Track</div>
-                          <div className="font-mono text-xs tabular-nums text-muted">
-                            {formatNumber(r.track)}
-                          </div>
-                        </div>
-                        <div className="rounded-lg bg-card/80 px-2 py-1.5">
-                          <div className="text-2xs text-subtle">%</div>
-                          <div
-                            className={cn(
-                              "font-mono text-xs font-semibold tabular-nums",
-                              toneTextClass(r.tone),
-                            )}
-                          >
-                            {r.tone === "none" ? "—" : formatPct1(r.pct)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
+      {/* Mobile */}
+      <div className="space-y-2 md:hidden">
+        {rows.map((r) => {
+          const open = openDate === r.date;
+          return (
+            <div key={r.date} className="rounded-xl border border-border bg-card-2/40 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setOpenDate(open ? null : r.date)}
+                className="flex w-full items-center gap-2 p-3 text-left"
+                aria-expanded={open}
+              >
+                <span className="min-w-0 flex-1 font-mono text-xs font-semibold tabular-nums text-foreground">
+                  {r.date}
+                </span>
+                <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                  {formatNumber(r.dailyActual)}
+                </span>
+                <span className={cn("font-mono text-xs font-semibold tabular-nums", toneTextClass(r.tone))}>
+                  {r.tone === "none" ? "—" : formatPct1(r.pct)}
+                </span>
+                <span className="text-xs text-subtle">{open ? "−" : "+"}</span>
+              </button>
+              {open && (
+                <div className="grid grid-cols-2 gap-1.5 border-t border-border p-3">
+                  <Metric label="Half" value={r.half} />
+                  <Metric label="Status" value={r.tone === "none" ? "—" : r.tone === "excellent" ? "Excellent" : r.tone === "vgood" ? "V.Good" : r.tone === "good" ? "Good" : r.tone === "willdo" ? "Will Do" : "Danger"} />
+                  <Metric label="Cumulative" value={formatNumber(r.cumulative)} />
+                  <Metric label="Track" value={formatNumber(r.track)} />
+                </div>
+              )}
             </div>
-          ))}
+          );
+        })}
       </div>
     </>
   );
