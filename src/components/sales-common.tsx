@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   fitNumberClass,
   formatNumber,
@@ -217,14 +216,12 @@ export function HalfCard({
   checkpointPct: number;
 }) {
   const [open, setOpen] = useState(!frozen);
-
-  useEffect(() => {
-    setOpen(!frozen);
-  }, [frozen]);
+  useEffect(() => setOpen(!frozen), [frozen]);
 
   const { tone, pct } = perfOf(actual, track);
-  const cpTarget =
-    checkpointPct === 0.8 ? calculate80PercentTarget(target) : calculate85PercentTarget(target);
+  const cpTarget = checkpointPct === 0.8
+    ? calculate80PercentTarget(target)
+    : calculate85PercentTarget(target);
   const cpPerf = perfOf(actual, cpTarget);
   const cpLabel = Math.round(checkpointPct * 100);
 
@@ -242,7 +239,10 @@ export function HalfCard({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {frozen ? (
-            <span className={cn("font-mono text-sm font-bold tabular-nums sm:text-base", toneTextClass(cpPerf.tone))}>
+            <span className={cn(
+              "font-mono text-sm font-bold tabular-nums sm:text-base",
+              toneTextClass(cpPerf.tone),
+            )}>
               {cpPerf.tone === "none" ? "—" : formatPct1(cpPerf.pct)}
             </span>
           ) : (
@@ -266,7 +266,10 @@ export function HalfCard({
           </div>
 
           <div className="mt-3 text-center">
-            <div className={cn("font-mono text-3xl font-bold tabular-nums", toneTextClass(tone))}>
+            <div className={cn(
+              "font-mono text-3xl font-bold tabular-nums",
+              toneTextClass(tone),
+            )}>
               {tone === "none" ? "—" : formatPct1(pct)}
             </div>
           </div>
@@ -279,7 +282,10 @@ export function HalfCard({
               <span className="font-mono text-xs tabular-nums text-foreground">
                 {formatNumber(cpTarget)}
               </span>
-              <span className={cn("font-mono text-sm font-bold tabular-nums", toneTextClass(cpPerf.tone))}>
+              <span className={cn(
+                "font-mono text-sm font-bold tabular-nums",
+                toneTextClass(cpPerf.tone),
+              )}>
                 {cpPerf.tone === "none" ? "—" : formatPct1(cpPerf.pct)}
               </span>
               <PerfPill tone={cpPerf.tone} compact />
@@ -291,3 +297,226 @@ export function HalfCard({
   );
 }
 
+/* ============================================================
+   تفاصيل الأيام — جدول على الشاشات الكبيرة وكروت على الموبايل
+   ============================================================ */
+export function DailyDetails({
+  rows,
+  daysInMonth,
+}: {
+  rows: SalesRow[];
+  daysInMonth: number;
+}) {
+  const halfLabel = (h: "H1" | "H2") =>
+    h === "H1"
+      ? `Half 1 — Days 1-${HALF1_DAYS}`
+      : `Half 2 — Days ${HALF1_DAYS + 1}-${daysInMonth}`;
+
+  if (rows.length === 0) {
+    return (
+      <p className="rounded-xl bg-card-2/40 p-4 text-center text-xs text-subtle">
+        لا توجد إدخالات بعد — أضف محقق اليوم من صفحة Daily Editor.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      {/* Desktop / Tablet */}
+      <div className="hidden md:block">
+        <table className="w-full table-fixed text-left">
+          <thead>
+            <tr className="border-b border-border text-2xs uppercase tracking-wider text-subtle">
+              <th className="w-[13%] py-2 pr-2 font-semibold">Date</th>
+              <th className="w-[9%] px-1 py-2 font-semibold">Half</th>
+              <th className="w-[15%] px-1 py-2 text-right font-semibold">Daily</th>
+              <th className="w-[17%] px-1 py-2 text-right font-semibold">Cumulative</th>
+              <th className="w-[17%] px-1 py-2 text-right font-semibold">Track</th>
+              <th className="w-[11%] px-1 py-2 text-right font-semibold">%</th>
+              <th className="w-[18%] py-2 pl-1 text-right font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((r) => (
+              <tr key={r.date} className="text-xs transition-colors hover:bg-card-2/30">
+                <td className="py-2.5 pr-2 font-mono tabular-nums text-muted">{r.date.slice(5)}</td>
+                <td className="px-1 py-2.5 text-2xs font-semibold text-subtle">{r.half}</td>
+                <td className="px-1 py-2.5 text-right font-mono tabular-nums text-foreground">
+                  {formatNumber(r.dailyActual)}
+                </td>
+                <td className="px-1 py-2.5 text-right font-mono font-semibold tabular-nums text-foreground">
+                  {formatNumber(r.cumulative)}
+                </td>
+                <td className="px-1 py-2.5 text-right font-mono tabular-nums text-muted">
+                  {formatNumber(r.track)}
+                </td>
+                <td
+                  className={cn(
+                    "px-1 py-2.5 text-right font-mono font-semibold tabular-nums",
+                    toneTextClass(r.tone),
+                  )}
+                >
+                  {r.tone === "none" ? "—" : formatPct1(r.pct)}
+                </td>
+                <td className="py-2 pl-1 text-right">
+                  <PerfPill tone={r.tone} compact />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile — كروت بدل الجدول: بلا أي سكرول أفقي */}
+      <div className="space-y-4 md:hidden">
+        {(["H1", "H2"] as const)
+          .filter((h) => rows.some((r) => r.half === h))
+          .map((half) => (
+            <div key={half}>
+              <div className="mb-2 text-2xs font-semibold uppercase tracking-wider text-subtle">
+                {halfLabel(half)}
+              </div>
+              <div className="space-y-2">
+                {rows
+                  .filter((r) => r.half === half)
+                  .map((r) => (
+                    <div key={r.date} className="rounded-xl border border-border bg-card-2/40 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                          {r.date}
+                        </span>
+                        <PerfPill tone={r.tone} compact />
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-1.5">
+                        <div className="rounded-lg bg-card/80 px-2 py-1.5">
+                          <div className="text-2xs text-subtle">Daily</div>
+                          <div className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                            {formatNumber(r.dailyActual)}
+                          </div>
+                        </div>
+                        <div className="rounded-lg bg-card/80 px-2 py-1.5">
+                          <div className="text-2xs text-subtle">Cumulative</div>
+                          <div className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                            {formatNumber(r.cumulative)}
+                          </div>
+                        </div>
+                        <div className="rounded-lg bg-card/80 px-2 py-1.5">
+                          <div className="text-2xs text-subtle">Track</div>
+                          <div className="font-mono text-xs tabular-nums text-muted">
+                            {formatNumber(r.track)}
+                          </div>
+                        </div>
+                        <div className="rounded-lg bg-card/80 px-2 py-1.5">
+                          <div className="text-2xs text-subtle">%</div>
+                          <div
+                            className={cn(
+                              "font-mono text-xs font-semibold tabular-nums",
+                              toneTextClass(r.tone),
+                            )}
+                          >
+                            {r.tone === "none" ? "—" : formatPct1(r.pct)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
+   Section واحدة موحّدة — تُستخدم لكل مستويات العرض
+   ============================================================ */
+export function Section({
+  title,
+  subtitle,
+  s,
+  rows,
+  daysInMonth,
+  half2Visible,
+  highlight,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  s: SectionStats;
+  rows: SalesRow[];
+  daysInMonth: number;
+  half2Visible: boolean;
+  highlight?: boolean;
+  /** جدول تفاصيل بديل (مثال: أعمدة أجزاء القسم في صفحة Mobile) */
+  children?: React.ReactNode;
+}) {
+  const monthPerf = perfOf(s.monthActual, s.monthTrack);
+  return (
+    <section
+      className={cn(
+        "hairline print-surface rounded-2xl bg-card/90 p-4 sm:p-6",
+        highlight && "gradient-border ring-1 ring-primary/30",
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className={cn("font-bold text-foreground", highlight ? "text-2xl" : "text-xl")}>
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="mt-0.5 text-xs text-subtle">{subtitle}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Overall Summary */}
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <Metric label="Monthly Target" value={formatNumber(s.monthlyTarget)} fit={s.monthlyTarget} />
+        <Metric label="Daily Target" value={formatNumber(s.dailyTarget)} fit={s.dailyTarget} />
+        <Metric label="Track" value={formatNumber(s.monthTrack)} fit={s.monthTrack} />
+        <Metric label="Cum. Actual" value={formatNumber(s.monthActual)} fit={s.monthActual} />
+        <Metric
+          label="Month %"
+          value={monthPerf.tone === "none" ? "—" : formatPct1(monthPerf.pct)}
+          tone={monthPerf.tone}
+        />
+        <div className="flex items-center justify-center rounded-xl bg-card-2/50 p-3">
+          <PerfPill tone={monthPerf.tone} />
+        </div>
+      </div>
+
+      {/* Half 1 + Half 2 */}
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <HalfCard
+          title="Half 1"
+          daysLabel={`Days 1-${HALF1_DAYS}`}
+          target={s.h1Target}
+          track={s.h1Track}
+          actual={s.h1Actual}
+          frozen={s.frozen}
+          checkpointPct={0.8}
+        />
+        {half2Visible && (
+          <HalfCard
+            title="Half 2"
+            daysLabel={`Days ${HALF1_DAYS + 1}-${daysInMonth}`}
+            target={s.h2Target}
+            track={s.h2Track}
+            actual={s.h2Actual}
+            frozen={false}
+            checkpointPct={0.85}
+          />
+        )}
+      </div>
+
+      {/* Daily Details */}
+      <div className="mt-4">
+        <h3 className="mb-2 text-sm font-semibold text-foreground">
+          {title} — Daily Details
+        </h3>
+        {children ?? <DailyDetails rows={rows} daysInMonth={daysInMonth} />}
+      </div>
+    </section>
+  );
+}
