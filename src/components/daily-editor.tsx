@@ -306,7 +306,7 @@ export function DailyEditor() {
         </div>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card/80 overflow-hidden shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card/80 shadow-sm">
         <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Monthly Targets</h2>
@@ -327,19 +327,19 @@ export function DailyEditor() {
             </Button>
           )}
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead><tr className="border-b border-border bg-card-2/40 text-2xs uppercase tracking-wider text-subtle">
-              <th className="px-3 py-3 text-center font-semibold">Type</th>
-              <th className="px-3 py-3 text-center font-semibold">Name</th>
-              <th className="px-3 py-3 text-center font-semibold text-primary">Monthly Target</th>
+        <div className="px-2 pb-2 sm:px-3">
+          <table className="w-full border-separate border-spacing-y-1.5">
+            <thead><tr className="text-2xs uppercase tracking-wider text-subtle">
+              <th className="rounded-l-xl bg-card-2/40 px-3 py-3 text-left font-semibold">Type</th>
+              <th className="bg-card-2/40 px-3 py-3 text-left font-semibold">Name</th>
+              <th className="rounded-r-xl bg-card-2/40 px-3 py-3 text-right font-semibold text-primary">Monthly Target</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
               {DEPS.map((dep) => (
-                <tr key={dep}>
-                  <td className="px-3 py-3 text-center text-xs text-subtle">Department</td>
-                  <td className="px-3 py-3 text-center font-semibold text-foreground">{dep}</td>
-                  <td className="px-3 py-3 text-center">
+                <tr key={dep} className="group">
+                  <td className="rounded-l-xl border-y border-l border-border/70 bg-card-2/30 px-3 py-3 text-left text-xs text-subtle"><span className="inline-flex rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Department</span></td>
+                  <td className="border-y border-border/70 bg-card-2/30 px-3 py-3 text-left font-semibold text-foreground">{dep}</td>
+                  <td className="rounded-r-xl border-y border-r border-border/70 bg-card-2/30 px-3 py-3 text-right">
                     {monthlyTargetEditMode ? (
                       <input type="text" inputMode="numeric" value={depTargetDrafts[dep] ?? ""} onChange={(e) => setDepTargetDrafts((prev) => ({ ...prev, [dep]: e.target.value }))} placeholder="0" className={fieldCls} />
                     ) : (
@@ -349,9 +349,9 @@ export function DailyEditor() {
                 </tr>
               ))}
               {KPIS.map((kpi) => (
-                <tr key={kpi}>
-                  <td className="px-3 py-3 text-center text-xs text-subtle">KPI</td>
-                  <td className="px-3 py-3 text-center font-semibold text-foreground">{kpi}</td>
+                <tr key={kpi} className="group">
+                  <td className="rounded-l-xl border-y border-l border-border/70 bg-card-2/30 px-3 py-3 text-left text-xs text-subtle"><span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">KPI</span></td>
+                  <td className="border-y border-border/70 bg-card-2/30 px-3 py-3 text-left font-semibold text-foreground">{kpi}</td>
                   <td className="px-3 py-3 text-center">
                     {monthlyTargetEditMode ? (
                       <input type="text" inputMode="numeric" value={kpiTargetDrafts[kpi] ?? ""} onChange={(e) => setKpiTargetDrafts((prev) => ({ ...prev, [kpi]: e.target.value }))} placeholder="0" className={fieldCls} />
