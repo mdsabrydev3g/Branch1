@@ -15,8 +15,10 @@ import {
 } from "lucide-react";
 import { PERIODS, type ViewId } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
+import { isRealtimeLive, resyncNow, startRealtimeSync } from "@/lib/realtime/client";
 import { usePrefs, usePrefsEffect } from "@/lib/prefs";
 import { Button } from "@/components/ui/button";
+import { SyncBadge } from "@/components/sync-badge";
 import { Overview } from "@/components/overview";
 import { TvAcView } from "@/components/tv-ac-view";
 import { MdaSdaView } from "@/components/mda-sda-view";
@@ -49,21 +51,28 @@ export function Shell() {
     // دور الجلسة يأتي من السيرفر فقط — لا يُخزَّن ولا يُخمن محلياً
     void syncRole();
 
-    // Auto-polling every 15s to keep all employee screens synchronized in real-time
+    // قناة التزامن: كل تغيير على أي جهاز (ويب / سطح مكتب / موبايل) يصل فوراً
+    // ويُطبَّق على المخزن مباشرة — بدون إعادة تحميل للصفحة.
+    const stopRealtime = startRealtimeSync();
+
+    // الاستقصاء بقي كخطة احتياطية فقط: يعمل عندما يتعذّر إبقاء القناة مفتوحة
+    // (شبكة مقفلة / انقطاع)، فلا يفقد التطبيق التزامن في أسوأ الحالات.
     const interval = setInterval(() => {
-      hydrate(true);
+      if (!isRealtimeLive()) hydrate(true);
     }, 15000);
 
     const onSync = () => {
-      if (document.visibilityState === "visible") {
-        hydrate(true);
-      }
+      if (document.visibilityState !== "visible") return;
+      // العودة إلى الواجهة: نتحقّق دائماً من وجود أي تغيير فاتنا
+      if (isRealtimeLive()) resyncNow();
+      else hydrate(true);
     };
 
     window.addEventListener("focus", onSync);
     document.addEventListener("visibilitychange", onSync);
 
     return () => {
+      stopRealtime();
       clearInterval(interval);
       window.removeEventListener("focus", onSync);
       document.removeEventListener("visibilitychange", onSync);
@@ -185,6 +194,7 @@ function Topbar() {
         <Brand showText={false} />
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="hidden text-xs text-subtle sm:inline">{today}</span>
+          <SyncBadge />
           {/* الأيقونتان معاً في الـ DOM وCSS يُظهر واحدة حسب الثيم — فالتمركز لا
               يعتمد على JS ولا ينتج Hydration mismatch (الثيم على العميل فقط). */}
           <button

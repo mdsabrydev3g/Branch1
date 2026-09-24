@@ -18,7 +18,11 @@ import {
   type BranchKpiTargets,
 } from "@/lib/domain";
 import { saveKpiCell } from "@/lib/performance-api";
-import { loadDashboardState, saveDashboardState } from "@/lib/dashboard-api";
+import {
+  loadDashboardState,
+  saveDashboardState,
+  type SharedDashboardState,
+} from "@/lib/dashboard-api";
 import { getAdminSession } from "@/lib/auth/admin-api";
 
 const STORAGE_KEY = "fayoum-pcc-v2";
@@ -74,6 +78,13 @@ interface PerfState {
     kpiTargets?: Partial<Record<Kpi, number>>;
   }) => Promise<void>;
   hydrate: (silent?: boolean) => Promise<void>;
+  /**
+   * يطبّق حالة وصلت من قناة التزامن (SSE) فورًا: بدون إعادة تحميل للصفحة وبدون
+   * طلب شبكة إضافي، لأن الحالة نفسها تصل داخل الحدث.
+   */
+  applyRemote: (shared: unknown) => void;
+  /** يسحب أحدث حالة من السيرفر ويطبّقها إن كانت أحدث مما لدينا. */
+  syncRemote: () => Promise<void>;
 }
 
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -146,6 +157,56 @@ function sharedStateFromStore(state: Pick<
 let sharedSaveTimer: ReturnType<typeof setTimeout> | undefined;
 let sharedRevision = 0;
 
+/**
+ * عدد الكتابات المشتركة الجارية الآن. نؤجّل تطبيق تحديث قادم من جهاز آخر
+ * أثناءها حتى لا يرتد ما كتبه المستخدم للتو في الواجهة قبل تأكيد الحفظ.
+ */
+let sharedWritesInFlight = 0;
+let deferredRemoteApply = false;
+
+/**
+ * المسار الواحد لكل كتابة على الحالة المشتركة: يحفظ، ويحدّث رقم النسخة،
+ * ويتعامل مع تعارض الأجهزة، ويعاود سحب أي تحديث وصل أثناء الحفظ.
+ */
+async function writeSharedState(
+  get: () => PerfState,
+  set: (partial: Partial<PerfState> | ((state: PerfState) => Partial<PerfState>)) => void,
+  data: Parameters<typeof saveDashboardState>[0]["data"],
+  options: { throwOnConflict?: boolean } = {},
+) {
+  sharedWritesInFlight += 1;
+  try {
+    const result = await saveDashboardState({ data, expectedRevision: sharedRevision });
+    if (result.ok) {
+      sharedRevision = result.revision;
+      return result;
+    }
+    await applySharedConflict(get, set);
+    if (options.throwOnConflict) {
+      throw new Error(
+        "Dashboard changed on another device. The latest data was loaded; please review and save again.",
+      );
+    }
+    return result;
+  } finally {
+    sharedWritesInFlight -= 1;
+    if (sharedWritesInFlight === 0 && deferredRemoteApply) {
+      deferredRemoteApply = false;
+      void get().syncRemote();
+    }
+  }
+}
+
+function queueSharedSave(
+  get: () => PerfState,
+  set: (partial: Partial<PerfState> | ((state: PerfState) => Partial<PerfState>)) => void,
+) {
+  if (sharedSaveTimer) clearTimeout(sharedSaveTimer);
+  sharedSaveTimer = setTimeout(() => {
+    void writeSharedState(get, set, sharedStateFromStore(get()));
+  }, 300);
+}
+
 async function applySharedConflict(
   get: () => PerfState,
   set: (partial: Partial<PerfState> | ((state: PerfState) => Partial<PerfState>)) => void,
@@ -169,26 +230,6 @@ async function applySharedConflict(
   } catch {
     set({ saveState: "error" });
   }
-}
-
-function queueSharedSave(
-  get: () => PerfState,
-  set: (partial: Partial<PerfState> | ((state: PerfState) => Partial<PerfState>)) => void,
-) {
-  if (sharedSaveTimer) clearTimeout(sharedSaveTimer);
-  sharedSaveTimer = setTimeout(() => {
-    void (async () => {
-      const result = await saveDashboardState({
-        data: sharedStateFromStore(get()),
-        expectedRevision: sharedRevision,
-      });
-      if (result.ok) {
-        sharedRevision = result.revision;
-      } else {
-        await applySharedConflict(get, set);
-      }
-    })();
-  }, 300);
 }
 
 function readSaved(): {
@@ -375,6 +416,51 @@ function queueSave(
         .catch(() => onState("error"));
     }, 280),
   );
+}
+
+/**
+ * يطبّق حالة مشتركة (من السيرفر أو من قناة التزامن) على المخزن بعد تطبيعها.
+ * مسار واحد لكل حالة قادمة من الخارج — فلا يختلف سلوك التزامن عن hydrate:
+ * نفس ترحيل الأسماء القديمة، ونفس القيم الافتراضية، ونفس الكاش المحلي.
+ */
+function applySharedToStore(
+  shared: SharedDashboardState,
+  get: () => PerfState,
+  set: (partial: Partial<PerfState> | ((state: PerfState) => Partial<PerfState>)) => void,
+): void {
+  // السيرفر قد يحمل أسماء قديمة (مؤشرات أو أقسام) — رحّلها قبل الاستخدام
+  migrateNames(shared);
+  const branchKpisByPeriod =
+    shared.branchKpisByPeriod && Object.keys(shared.branchKpisByPeriod).length
+      ? shared.branchKpisByPeriod
+      : { [shared.period]: shared.branchKpis };
+  const branchKpis = shared.branchKpisByPeriod?.[shared.period] ?? shared.branchKpis;
+
+  set({
+    ...shared,
+    branchKpiTargets: shared.branchKpiTargets ?? {},
+    branchKpisByPeriod,
+    branchKpis,
+    hydrated: true,
+    role: get().role,
+  });
+
+  persistLocal(
+    shared.period,
+    shared.data,
+    shared.dailyActuals,
+    shared.branchDailyActuals,
+    shared.departmentDailyActuals,
+    shared.departmentTargets,
+    shared.branchKpiTargets ?? {},
+    branchKpisByPeriod,
+  );
+
+  try {
+    localStorage.setItem(`${STORAGE_KEY}:branch-kpis`, JSON.stringify(branchKpis));
+  } catch {
+    /* local cache is optional */
+  }
 }
 
 export const usePerfStore = create<PerfState>((set, get) => ({
@@ -601,15 +687,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       nextByPeriod,
     );
 
-    const saveResult = await saveDashboardState({
-      data: sharedStateFromStore(get()),
-      expectedRevision: sharedRevision,
-    });
-    if (!saveResult.ok) {
-      await applySharedConflict(get, set);
-      throw new Error("Dashboard changed on another device. The latest data was loaded; please review and save again.");
-    }
-    sharedRevision = saveResult.revision;
+    await writeSharedState(get, set, sharedStateFromStore(get()), { throwOnConflict: true });
   },
   saveMonthlyKpiActuals: async ({ period, actuals }) => {
     if (get().role === "staff") return;
@@ -633,15 +711,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       state.branchKpiTargets,
       nextByPeriod,
     );
-    const saveResult = await saveDashboardState({
-      data: sharedStateFromStore(get()),
-      expectedRevision: sharedRevision,
-    });
-    if (!saveResult.ok) {
-      await applySharedConflict(get, set);
-      throw new Error("Dashboard changed on another device. The latest data was loaded; please review and save again.");
-    }
-    sharedRevision = saveResult.revision;
+    await writeSharedState(get, set, sharedStateFromStore(get()), { throwOnConflict: true });
   },
   setDepartmentDailyActual: (dep, date, value) => {
     if (get().role === "staff") return;
@@ -794,15 +864,40 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       nextBranchKpisByPeriod,
     );
 
-    const saveResult = await saveDashboardState({
-      data: sharedStateFromStore(get()),
-      expectedRevision: sharedRevision,
-    });
-    if (!saveResult.ok) {
-      await applySharedConflict(get, set);
-      throw new Error("Dashboard changed on another device. The latest data was loaded; please review and save again.");
+    await writeSharedState(get, set, sharedStateFromStore(get()), { throwOnConflict: true });
+  },
+  /**
+   * يطبّق حالة وصلت من قناة التزامن فورًا. الحراس هنا مهمّان:
+   *  - حالة غير قابلة للعرض (بلا قسم للفترة الحالية) لا تلمس الواجهة.
+   *  - نسخة أحدث فقط هي التي تُطبَّق (كل كتابة تزيد revision على السيرفر).
+   *  - أثناء كتابة محلية لم تُؤكَّد بعد نؤجّل التطبيق ثم نعاود السحب، حتى لا
+   *    يرتد ما كتبه المستخدم للتو على الشاشة قبل أن يُحفظ.
+   */
+  applyRemote: (raw) => {
+    if (!raw || typeof raw !== "object") return;
+    const shared = raw as SharedDashboardState;
+    if (!shared.period || !shared.data || !shared.data[shared.period]) return;
+    const revision = Number(shared.revision) || 0;
+    if (revision > 0 && revision <= sharedRevision) return;
+    if (sharedWritesInFlight > 0) {
+      deferredRemoteApply = true;
+      return;
     }
-    sharedRevision = saveResult.revision;
+    if (revision > 0) sharedRevision = revision;
+    applySharedToStore(shared, get, set);
+  },
+  /**
+   * سحب متعمّد لأحدث حالة: يُستخدم عند العودة إلى الواجهة بعد الخلفية أو
+   * الانقطاع، وعندما يصل حدث تزامن بلا حالة مرفقة.
+   */
+  syncRemote: async () => {
+    try {
+      const shared = await loadDashboardState();
+      if (shared.revision <= sharedRevision) return;
+      get().applyRemote(shared);
+    } catch {
+      // السيرفر/الشبكة غير متاحة الآن: نُبقي ما لدينا وننتظر إعادة الاتصال.
+    }
   },
   hydrate: async (silent = false) => {
     if (!silent && get().hydrated) return;
@@ -812,34 +907,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     try {
       const shared = await loadDashboardState();
       sharedRevision = shared.revision;
-      // السيرفر قد يحمل أسماء قديمة (مؤشرات أو أقسام) — رحّلها قبل الاستخدام
-      migrateNames(shared);
-      set({
-        ...shared,
-        branchKpiTargets: shared.branchKpiTargets ?? {},
-        branchKpisByPeriod:
-          shared.branchKpisByPeriod && Object.keys(shared.branchKpisByPeriod).length
-            ? shared.branchKpisByPeriod
-            : { [shared.period]: shared.branchKpis },
-        branchKpis: shared.branchKpisByPeriod?.[shared.period] ?? shared.branchKpis,
-        hydrated: true,
-        role: currentRole,
-      });
-      persistLocal(
-        shared.period,
-        shared.data,
-        shared.dailyActuals,
-        shared.branchDailyActuals,
-        shared.departmentDailyActuals,
-        shared.departmentTargets,
-        shared.branchKpiTargets ?? {},
-        shared.branchKpisByPeriod?.[shared.period] ?? { [shared.period]: shared.branchKpis },
-      );
-      try {
-        localStorage.setItem(`${STORAGE_KEY}:branch-kpis`, JSON.stringify(shared.branchKpisByPeriod?.[shared.period] ?? shared.branchKpis));
-      } catch {
-        /* local cache is optional */
-      }
+      applySharedToStore(shared, get, set);
       return;
     } catch {
       // Keep the local cache available if the shared database is unavailable.

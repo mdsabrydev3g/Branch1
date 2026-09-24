@@ -72,6 +72,22 @@ function parseState(value: unknown): SharedDashboardState {
   return isRenderable(state) ? state : defaultState();
 }
 
+/**
+ * يُعلِم كل الأجهزة المتصلة بأن الحالة المشتركة تغيّرت: العملاء المتصلون بنفس
+ * نسخة السيرفر يستلمون التغيير فورًا (بدون أي قراءة من قاعدة البيانات)، وبقية
+ * النسخ تلتقطه عبر مؤقّت رقم النسخة (rev).
+ *
+ * تعمل بأفضل جهد فقط: لا يجوز أن يفشل حفظ المدير بسبب طبقة التزامن.
+ */
+async function publishChange(revision: number, state: unknown): Promise<void> {
+  try {
+    const { publishState } = await import("@/lib/realtime/hub.server");
+    publishState(revision, state);
+  } catch {
+    /* realtime is an enhancement, never a write dependency */
+  }
+}
+
 export const loadDashboardState = createServerFn({ method: "GET" }).handler(async () => {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
@@ -106,7 +122,9 @@ export const saveDashboardState = createServerFn({ method: "POST" })
       const rows = await sql<{ revision: number }>`
         select revision from dashboard_state where state_key = 'main'
       `;
-      return { ok: true as const, revision: Number(rows[0]?.revision) || 1 };
+      const revision = Number(rows[0]?.revision) || 1;
+      await publishChange(revision, stateData);
+      return { ok: true as const, revision };
     }
 
     if (expectedRevision === 0) {
@@ -117,7 +135,9 @@ export const saveDashboardState = createServerFn({ method: "POST" })
         returning revision
       `;
       if (inserted[0]) {
-        return { ok: true as const, revision: Number(inserted[0].revision) };
+        const revision = Number(inserted[0].revision);
+        await publishChange(revision, stateData);
+        return { ok: true as const, revision };
       }
     }
 
@@ -134,5 +154,7 @@ export const saveDashboardState = createServerFn({ method: "POST" })
       return { ok: false as const, conflict: true as const };
     }
 
-    return { ok: true as const, revision: Number(rows[0].revision) };
+    const revision = Number(rows[0].revision);
+    await publishChange(revision, stateData);
+    return { ok: true as const, revision };
   });
