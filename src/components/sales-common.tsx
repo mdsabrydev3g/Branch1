@@ -382,7 +382,7 @@ export function DailyDetails({
               return (
                 <tr key={r.date} className="text-xs">
                   <td colSpan={4} className="p-0">
-                    <div
+                    <button
                       type="button"
                       onClick={() => setOpenDate(open ? null : r.date)}
                       aria-expanded={open}
