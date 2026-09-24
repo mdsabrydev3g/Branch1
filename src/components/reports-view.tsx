@@ -40,9 +40,11 @@ import { StatusPill } from "@/components/status-pill";
 import { cn } from "@/lib/utils";
 
 const TONE_TEXT: Record<StatusTone, string> = {
+  excellent: "text-emerald-300",
+  vgood: "text-emerald-200",
   good: "text-success",
-  watch: "text-warning",
-  bad: "text-danger",
+  willdo: "text-warning",
+  danger: "text-danger",
 };
 
 export function ReportsView() {
