@@ -17,7 +17,8 @@ import { cn } from "@/lib/utils";
 export const HALF1_DAYS = 15; // النصف الأول: أيام 1..15 — النصف الثاني: 16..آخر الشهر
 export const STATUS_WILL_DO_MIN = 0.7;
 export const STATUS_GOOD_MIN = 0.8;
-export const STATUS_EXCELLENT_MIN = 0.9;
+export const STATUS_VGOOD_MIN = 0.9;
+export const STATUS_EXCELLENT_MIN = 1.0;
 
 export type PerfTone = "excellent" | "good" | "willdo" | "danger" | "none";
 
@@ -50,7 +51,8 @@ export function toneTextClass(tone: PerfTone): string {
 export function perfOf(actual: number, track: number): { tone: PerfTone; pct: number } {
   if (track <= 0) return { tone: "none", pct: 0 };
   const pct = actual / track;
-  if (actual >= track || pct >= STATUS_EXCELLENT_MIN) return { tone: "excellent", pct };
+  if (pct > STATUS_EXCELLENT_MIN) return { tone: "excellent", pct };
+  if (pct > STATUS_VGOOD_MIN) return { tone: "excellent", pct };
   if (pct >= STATUS_GOOD_MIN) return { tone: "good", pct };
   if (pct >= STATUS_WILL_DO_MIN) return { tone: "willdo", pct };
   return { tone: "danger", pct };
@@ -216,8 +218,7 @@ export function HalfCard({
   frozen: boolean;
   checkpointPct: number;
 }) {
-  const [open, setOpen] = useState(!frozen);
-  useEffect(() => setOpen(!frozen), [frozen]);
+  const [open, setOpen] = useState(false);
 
   const { tone, pct } = perfOf(actual, track);
   const cpTarget = checkpointPct === 0.8
@@ -235,8 +236,15 @@ export function HalfCard({
         aria-expanded={open}
       >
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground sm:text-base">{title}</h3>
-          <p className="text-2xs text-subtle sm:text-xs">{daysLabel}</p>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground sm:text-base">{title}</h3>
+            {frozen && (
+              <span className={cn("font-mono text-xs font-bold tabular-nums sm:text-sm", toneTextClass(cpPerf.tone))}>
+                {formatPct1(cpPerf.pct)}
+              </span>
+            )}
+          </div>
+          <p className="text-2xs text-subtle sm:text-xs">{daysLabel}{frozen ? " · Half 1 Actual" : ""}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {frozen ? (
