@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "identifier": "com.branch1.dashboard",
   "build": {
-    "frontendDist": "../dist"
+    "frontendDist": "https://branch1-mu.vercel.app/"
   },
   "app": {
     "windows": [
