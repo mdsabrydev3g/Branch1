@@ -27,7 +27,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
-      - run: npm run build
+      - name: Build web assets without DB migration
+        run: npm run build:dev
       - name: Prepare Capacitor web bundle
         run: |
           rm -rf apps/mobile/www
