@@ -226,6 +226,12 @@ export function ReportsView() {
                     <StatusPill ratio={r} report />
                   </div>
                 </div>
+                <div className="mt-2 flex items-center justify-between rounded-lg border border-border/70 bg-card/60 px-2.5 py-1.5">
+                  <span className="text-2xs font-semibold uppercase tracking-wider text-subtle">Half1</span>
+                  <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                    {formatNumber(firstHalfActualFromDaily(dailyKpi))}
+                  </span>
+                </div>
                 <div className="mt-2 grid min-w-0 grid-cols-3 gap-1.5">
                   <ProgressMetric label="Target" value={formatNumber(target)} />
                   <ProgressMetric label="Actual" value={formatNumber(actual)} />
