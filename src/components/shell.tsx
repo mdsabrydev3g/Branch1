@@ -18,7 +18,6 @@ import { usePerfStore } from "@/lib/store";
 import { isRealtimeLive, resyncNow, startRealtimeSync } from "@/lib/realtime/client";
 import { usePrefs, usePrefsEffect } from "@/lib/prefs";
 import { Button } from "@/components/ui/button";
-import { SyncBadge } from "@/components/sync-badge";
 import { Overview } from "@/components/overview";
 import { TvAcView } from "@/components/tv-ac-view";
 import { MdaSdaView } from "@/components/mda-sda-view";
@@ -181,7 +180,6 @@ function Topbar() {
   const period = usePerfStore((s) => s.period);
   const setPeriod = usePerfStore((s) => s.setPeriod);
   const view = usePerfStore((s) => s.view);
-  const setView = usePerfStore((s) => s.setView);
   const toggleTheme = usePrefs((s) => s.toggleTheme);
   const today = format(new Date(), "EEE d MMM yyyy");
   usePrefsEffect();
@@ -194,7 +192,6 @@ function Topbar() {
         <Brand showText={false} />
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="hidden text-xs text-subtle sm:inline">{today}</span>
-          <SyncBadge />
           {/* الأيقونتان معاً في الـ DOM وCSS يُظهر واحدة حسب الثيم — فالتمركز لا
               يعتمد على JS ولا ينتج Hydration mismatch (الثيم على العميل فقط). */}
           <button
@@ -229,13 +226,6 @@ function Topbar() {
               aria-hidden
             />
           </div>
-          <Button
-            variant="outline"
-            className="h-9 shrink-0 px-2.5 text-xs font-semibold sm:px-3"
-            onClick={() => setView("daily")}
-          >
-            Manager
-          </Button>
           {(view === "overview" || view === "reports") && (
             <Button
               variant="outline"
