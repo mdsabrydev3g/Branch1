@@ -352,7 +352,7 @@ export function DailyEditor() {
                 <tr key={kpi} className="group">
                   <td className="rounded-l-xl border-y border-l border-border/70 bg-card-2/30 px-3 py-3 text-left text-xs text-subtle"><span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">KPI</span></td>
                   <td className="border-y border-border/70 bg-card-2/30 px-3 py-3 text-left font-semibold text-foreground">{kpi}</td>
-                  <td className="px-3 py-3 text-center">
+                  <td className="rounded-r-xl border-y border-r border-border/70 bg-card-2/30 px-3 py-3 text-right">
                     {monthlyTargetEditMode ? (
                       <input type="text" inputMode="numeric" value={kpiTargetDrafts[kpi] ?? ""} onChange={(e) => setKpiTargetDrafts((prev) => ({ ...prev, [kpi]: e.target.value }))} placeholder="0" className={fieldCls} />
                     ) : (
