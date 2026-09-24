@@ -46,10 +46,10 @@ const TONE_TEXT: Record<PerfTone, string> = {
 };
 
 export function toneTextClass(tone: PerfTone): string {
-  return TONE_TEXT[tone];
+  return TONE_TEXT[tone] ?? TONE_TEXT.none;
 }
 
-/** الأولوية: Actual>=Track أو %>=90 → Excellent، ثم %>=80 → Good، ثم %>=70 → Will Do، وإلا Danger */
+/** Performance thresholds: >100% Excellent, >90% V.Good, >=80% Good, >=70% Will Do, otherwise Danger. */
 export function perfOf(actual: number, track: number): { tone: PerfTone; pct: number } {
   if (track <= 0) return { tone: "none", pct: 0 };
   const pct = actual / track;
@@ -61,7 +61,7 @@ export function perfOf(actual: number, track: number): { tone: PerfTone; pct: nu
 }
 
 export function PerfPill({ tone, compact }: { tone: PerfTone; compact?: boolean }) {
-  const t = PERF_TONE[tone];
+  const t = PERF_TONE[tone] ?? PERF_TONE.none;
   return (
     <span
       className={cn(
