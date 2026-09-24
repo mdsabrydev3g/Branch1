@@ -33,6 +33,7 @@ function calculateRatio(plan: number, result: number): number {
 }
 
 const CIRCLE_STROKE: Record<PerfTone, string> = {
+  vgood: "#34d399",
   excellent: "#10b981",
   good: "#10b981",
   willdo: "#f59e0b",
@@ -524,6 +525,7 @@ function StatRow({ label, value }: { label: string; value: string }) {
 /** كلمة الحالة بنفس نظام الأقسام: Excellent / Good / Will Do / Danger */
 function StatusWord({ tone, compact = false }: { tone: PerfTone; compact?: boolean }) {
   const WORD: Record<PerfTone, { label: string; cls: string }> = {
+    vgood: { label: "V.Good", cls: "border-emerald-300/30 bg-emerald-400/10 text-emerald-200" },
     excellent: { label: "Excellent", cls: "border-emerald-300/40 bg-emerald-400/15 text-emerald-300" },
     good: { label: "Good", cls: "border-success/30 bg-success/12 text-success" },
     willdo: { label: "Will Do", cls: "border-warning/30 bg-warning/12 text-warning" },
