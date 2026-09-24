@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { FileDown, Printer } from "lucide-react";
 import {
   DEPS,
@@ -192,6 +192,7 @@ export function ReportsView() {
                   block={block}
                   departmentTargets={departmentTargets}
                   departmentDailyActuals={departmentDailyActuals}
+                  collapsible
                 />
               ))}
             </div>
@@ -259,6 +260,7 @@ function ReportUnitCard({
   departmentTargets,
   departmentDailyActuals,
   highlight = false,
+  collapsible = false,
 }: {
   title: string;
   deps: typeof DEPS[number][];
@@ -267,7 +269,9 @@ function ReportUnitCard({
   departmentTargets: DepartmentTargets;
   departmentDailyActuals: DepartmentDailyActuals;
   highlight?: boolean;
+  collapsible?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const target = deps.reduce((sum, dep) => {
     const fallback = sumBlock(block[dep]);
     return sum + (departmentTargets[period]?.[dep] ?? fallback.plan);
@@ -298,7 +302,26 @@ function ReportUnitCard({
       "hairline print-surface rounded-2xl bg-card/80 p-4",
       highlight && "border-primary/30 ring-1 ring-primary/20"
     )}>
-      <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
+      <div
+        role={collapsible ? "button" : undefined}
+        tabIndex={collapsible ? 0 : undefined}
+        onClick={collapsible ? () => setOpen((v) => !v) : undefined}
+        onKeyDown={
+          collapsible
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setOpen((v) => !v);
+                }
+              }
+            : undefined
+        }
+        aria-expanded={collapsible ? open : undefined}
+        className={cn(
+          "flex items-start justify-between gap-3 border-b border-border pb-3",
+          collapsible && "cursor-pointer select-none",
+        )}
+      >
         <div>
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
           {highlight && <p className="mt-0.5 text-xs text-subtle">Combined total</p>}
@@ -308,8 +331,10 @@ function ReportUnitCard({
             {formatPct(r)}
           </span>
           <StatusPill ratio={r} report />
+          {collapsible && <span className="text-xs text-subtle">{open ? "−" : "+"}</span>}
         </div>
       </div>
+      {(!collapsible || open) && (
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Summary label="Target" value={formatNumber(target)} />
         <Summary label="Track" value={formatNumber(track)} />
@@ -327,6 +352,8 @@ function ReportUnitCard({
           <span className={cn("font-mono font-semibold", TONE_TEXT[statusOf(r).tone])}>{formatPct(r)}</span>
         </div>
       </div>
+      </div>
+    )}
     </section>
   );
 }
