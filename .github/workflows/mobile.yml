@@ -1,0 +1,80 @@
+name: Branch1 Mobile
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - '.github/workflows/mobile.yml'
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run build
+      - name: Prepare Capacitor web bundle
+        run: |
+          rm -rf apps/mobile/www
+          mkdir -p apps/mobile/www
+          cp -R dist/. apps/mobile/www/
+      - name: Install Capacitor tooling
+        working-directory: apps/mobile
+        run: npm install
+      - name: Generate Android project
+        working-directory: apps/mobile
+        run: |
+          npx cap add android
+          npx cap sync android
+      - name: Build debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleDebug
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch1-android-debug
+          path: apps/mobile/android/app/build/outputs/apk/debug/*.apk
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Prepare Capacitor web bundle
+        run: |
+          rm -rf apps/mobile/www
+          mkdir -p apps/mobile/www
+          cp -R dist/. apps/mobile/www/
+      - name: Install Capacitor tooling
+        working-directory: apps/mobile
+        run: npm install
+      - name: Generate iOS project
+        working-directory: apps/mobile
+        run: |
+          npx cap add ios
+          npx cap sync ios
+      - name: Archive iOS project
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch1-ios-project
+          path: apps/mobile/ios
