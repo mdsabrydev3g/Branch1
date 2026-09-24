@@ -246,7 +246,7 @@ export function HalfCard({
               </span>
             )}
           </div>
-          <p className="text-2xs text-subtle sm:text-xs">{daysLabel}{frozen ? " · Half 1 Actual" : ""}</p>
+          <p className="text-2xs text-subtle sm:text-xs">{daysLabel}{frozen ? " · 80% · Half 1 Actual " + formatNumber(actual) : ""}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {frozen ? (
