@@ -231,8 +231,17 @@ export function ReportsView() {
                 </div>
                 <div className="mt-2 flex items-center justify-between rounded-lg border border-border/70 bg-card/60 px-2.5 py-1.5">
                   <span className="text-2xs font-semibold uppercase tracking-wider text-subtle">Half1</span>
-                  <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
-                    {formatNumber(firstHalfActualFromDaily(dailyKpi))}
+                  <span className="flex items-center gap-2 font-mono text-xs font-semibold tabular-nums">
+                    <span className="text-foreground">{formatNumber(firstHalfActualFromDaily(dailyKpi))}</span>
+                    <span className={cn("font-semibold", TONE_TEXT[statusOf(ratio({
+                      plan: calculateFirstHalfTarget(target, period),
+                      result: firstHalfActualFromDaily(dailyKpi),
+                    })).tone])}>
+                      {formatPct(ratio({
+                        plan: calculateFirstHalfTarget(target, period),
+                        result: firstHalfActualFromDaily(dailyKpi),
+                      }))}
+                    </span>
                   </span>
                 </div>
                 <div className="mt-2 grid min-w-0 grid-cols-3 gap-1.5">
@@ -335,6 +344,7 @@ function ReportUnitCard({
         </div>
       </div>
       {(!collapsible || open) && (
+        <>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Summary label="Target" value={formatNumber(target)} />
         <Summary label="Track" value={formatNumber(track)} />
@@ -352,8 +362,8 @@ function ReportUnitCard({
           <span className={cn("font-mono font-semibold", TONE_TEXT[statusOf(r).tone])}>{formatPct(r)}</span>
         </div>
       </div>
-      </div>
-    )}
+        </>
+      )}
     </section>
   );
 }
