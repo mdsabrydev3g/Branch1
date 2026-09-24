@@ -174,7 +174,7 @@ function MultiDepDetails({
                       <span className={cn("w-[18%] text-right font-mono font-semibold tabular-nums", toneTextClass(r.tone))}>{r.tone === "none" ? "—" : formatPct1(r.pct)}</span>
                       <span className="flex w-[34%] items-center justify-end gap-2"><PerfPill tone={r.tone} compact /></span>
                       <span className="w-[10%] text-right text-xs text-subtle">{open ? "−" : "+"}</span>
-                    </div>
+                    </button>
                     {open && (
                       <div className="grid grid-cols-2 gap-2 border-t border-border bg-card-2/20 px-2 py-2 sm:grid-cols-4">
                         {r.perDep.map((p) => (
