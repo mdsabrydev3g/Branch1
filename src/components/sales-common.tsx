@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   fitNumberClass,
   formatNumber,
@@ -20,9 +20,10 @@ export const STATUS_GOOD_MIN = 0.8;
 export const STATUS_VGOOD_MIN = 0.9;
 export const STATUS_EXCELLENT_MIN = 1.0;
 
-export type PerfTone = "excellent" | "good" | "willdo" | "danger" | "none";
+export type PerfTone = "excellent" | "vgood" | "good" | "willdo" | "danger" | "none";
 
 const PERF_TONE: Record<PerfTone, { label: string; className: string }> = {
+  vgood: { label: "V.Good", className: "border-emerald-300/30 bg-emerald-400/10 text-emerald-200" },
   excellent: {
     label: "Excellent",
     className:
@@ -36,6 +37,7 @@ const PERF_TONE: Record<PerfTone, { label: string; className: string }> = {
 
 /** لون نص النسبة حسب الحالة: أخضر / أصفر / أحمر */
 const TONE_TEXT: Record<PerfTone, string> = {
+  vgood: "text-emerald-200",
   excellent: "text-emerald-300",
   good: "text-success",
   willdo: "text-warning",
@@ -52,7 +54,7 @@ export function perfOf(actual: number, track: number): { tone: PerfTone; pct: nu
   if (track <= 0) return { tone: "none", pct: 0 };
   const pct = actual / track;
   if (pct > STATUS_EXCELLENT_MIN) return { tone: "excellent", pct };
-  if (pct > STATUS_VGOOD_MIN) return { tone: "excellent", pct };
+  if (pct > STATUS_VGOOD_MIN) return { tone: "vgood", pct };
   if (pct >= STATUS_GOOD_MIN) return { tone: "good", pct };
   if (pct >= STATUS_WILL_DO_MIN) return { tone: "willdo", pct };
   return { tone: "danger", pct };
