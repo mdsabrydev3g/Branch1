@@ -1,0 +1,45 @@
+name: Branch1 Desktop
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/desktop/**'
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - '.github/workflows/desktop.yml'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run build
+      - name: Prepare desktop web bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force apps/desktop/dist | Out-Null
+          Copy-Item dist/index.html apps/desktop/dist/index.html -Force
+      - name: Build Tauri
+        working-directory: apps/desktop
+        run: |
+          npm install
+          npm run build
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch1-windows
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/**/*.msi
+            apps/desktop/src-tauri/target/release/bundle/**/*.exe
+          if-no-files-found: warn
