@@ -509,16 +509,18 @@ export function parseLoose(raw: string): number {
   return Math.round(n);
 }
 
-export type StatusTone = "good" | "watch" | "bad";
+export type StatusTone = "excellent" | "vgood" | "good" | "willdo" | "danger";
 
 export function statusOf(value: number): {
   tone: StatusTone;
   label: string;
   report: string;
 } {
-  if (value >= 1) return { tone: "good", label: "Good", report: "Good" };
-  if (value >= 0.8) return { tone: "watch", label: "Will Do", report: "Will Do" };
-  return { tone: "bad", label: "Danger", report: "Danger" };
+  if (value > 1) return { tone: "excellent", label: "Excellent", report: "Excellent" };
+  if (value > 0.9) return { tone: "vgood", label: "V.Good", report: "V.Good" };
+  if (value >= 0.8) return { tone: "good", label: "Good", report: "Good" };
+  if (value >= 0.7) return { tone: "willdo", label: "Will Do", report: "Will Do" };
+  return { tone: "danger", label: "Danger", report: "Danger" };
 }
 
 export function periodMeta(id: PeriodId) {
