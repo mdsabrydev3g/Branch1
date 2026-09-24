@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { FileDown, Printer } from "lucide-react";
 import {
   DEPS,
