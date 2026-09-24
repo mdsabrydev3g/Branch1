@@ -216,6 +216,7 @@
   .gradient-border::before {
     content: '';
     position: absolute;
+    pointer-events: none;
     inset: 0;
     border-radius: inherit;
     padding: 1px;
