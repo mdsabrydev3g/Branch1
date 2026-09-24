@@ -23,7 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
-      - run: npm ci
+      - run: npm install
       - name: Validate web build
         run: npm run build:dev
       - name: Build Tauri
