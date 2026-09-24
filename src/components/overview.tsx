@@ -282,7 +282,7 @@ export function OverviewView() {
                 key={kpi}
                 className="grid grid-cols-[minmax(34px,0.6fr)_minmax(48px,1fr)_minmax(48px,1fr)_minmax(30px,0.55fr)_minmax(68px,0.95fr)] items-center gap-1.5 rounded-xl border border-border bg-card-2/50 px-2 py-2 sm:grid-cols-[minmax(64px,0.9fr)_minmax(96px,1.1fr)_minmax(96px,1.1fr)_minmax(60px,0.8fr)_minmax(80px,0.9fr)] sm:gap-3 sm:px-4"
               >
-                <span className="justify-self-start text-base font-bold text-foreground sm:text-lg">{kpi}</span>
+                <span className="justify-self-start text-base font-bold text-foreground sm:text-lg">{kpi === "Gift" ? "Vature" : kpi}</span>
                 {/* موبايل: الليبل فوق الرقم (مجموعة متماسكة) فلا يلتصق رقم الـ
                     Target بكلمة Actual. ديسكتوب (sm+): الليبل والرقم متباعدان كالسابق. */}
                 <span className="flex min-w-0 flex-col items-center gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
