@@ -29,11 +29,11 @@ jobs:
       - run: npm install
       - name: Build web assets without DB migration
         run: npm run build:dev
-      - name: Prepare Capacitor web bundle
+      - name: Prepare Capacitor shell
         run: |
           rm -rf apps/mobile/www
           mkdir -p apps/mobile/www
-          cp -R dist/. apps/mobile/www/
+          printf '%s\n' '<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body></body></html>' > apps/mobile/www/index.html
       - name: Install Capacitor tooling
         working-directory: apps/mobile
         run: npm install
