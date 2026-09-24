@@ -351,8 +351,16 @@ function ReportUnitCard({
         <Summary label="Actual" value={formatNumber(actual)} />
         <Summary label="Remaining" value={formatNumber(calculateRemaining(target, actual))} />
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <Summary label="Half1" value={formatNumber(half1)} />
+      <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-border/70 bg-card/60 px-2.5 py-1.5">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-subtle">Half1</span>
+        <span className="flex items-center gap-2 font-mono text-xs font-semibold tabular-nums">
+          <span className="text-foreground">{formatNumber(half1)}</span>
+          <span className={cn("font-semibold", TONE_TEXT[statusOf(ratio({ plan: calculateFirstHalfTarget(target, period), result: half1 })).tone])}>
+            {formatPct(ratio({ plan: calculateFirstHalfTarget(target, period), result: half1 }))}
+          </span>
+        </span>
+      </div>
+      <div className="mt-2">
         <Summary label="Daily Target" value={formatNumber(target / getDaysInMonth(period))} />
       </div>
       <div className="mt-3">
