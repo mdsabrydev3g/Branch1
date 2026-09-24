@@ -31,6 +31,7 @@ jobs:
         run: |
           npm install
           cd src-tauri
+          ..\node_modules\.bin\tauri.cmd icon icon.svg
           ..\node_modules\.bin\tauri.cmd build
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4
