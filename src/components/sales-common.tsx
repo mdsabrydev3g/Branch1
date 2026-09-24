@@ -266,7 +266,18 @@ export function HalfCard({
               </span>
             )}
           </div>
-          <p className="text-2xs text-subtle sm:text-xs">{daysLabel}{frozen ? " · 80% · Half 1 Actual " + formatNumber(actual) : ""}</p>
+          <p className="flex flex-wrap items-center gap-2 text-2xs text-subtle sm:text-xs">
+            <span>{daysLabel}</span>
+            {frozen && (
+              <>
+                <span>·</span>
+                <span>Half 1 Actual <span className="font-mono font-semibold text-foreground">{formatNumber(actual)}</span></span>
+                <span className={cn("font-mono font-semibold", toneTextClass(cpPerf.tone))}>
+                  {formatPct1(cpPerf.pct)}
+                </span>
+              </>
+            )}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {frozen ? (
