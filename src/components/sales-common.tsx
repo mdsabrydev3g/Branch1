@@ -221,6 +221,7 @@ export function HalfCard({
   checkpointPct: number;
 }) {
   const [open, setOpen] = useState(false);
+  const toggleOpen = () => setOpen((v) => !v);
 
   const { tone, pct } = perfOf(actual, track);
   const cpTarget = checkpointPct === 0.8
@@ -233,8 +234,8 @@ export function HalfCard({
     <section className="hairline gradient-border rounded-2xl bg-card/90 p-4 sm:p-5">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 text-left"
+        onClick={toggleOpen}
+        className="relative z-10 flex w-full cursor-pointer items-center justify-between gap-3 text-left select-none"
         aria-expanded={open}
       >
         <div className="min-w-0">
