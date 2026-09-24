@@ -172,6 +172,7 @@ function Topbar() {
   const period = usePerfStore((s) => s.period);
   const setPeriod = usePerfStore((s) => s.setPeriod);
   const view = usePerfStore((s) => s.view);
+  const setView = usePerfStore((s) => s.setView);
   const toggleTheme = usePrefs((s) => s.toggleTheme);
   const today = format(new Date(), "EEE d MMM yyyy");
   usePrefsEffect();
@@ -205,7 +206,7 @@ function Topbar() {
               value={period}
               onChange={(e) => setPeriod(e.target.value as any)}
               aria-label="Select month"
-              className="h-9 w-[122px] min-w-0 appearance-none rounded-lg border border-primary/50 bg-card py-0 pl-8 pr-7 text-xs font-semibold text-foreground shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 sm:w-[120px]"
+              className="h-9 w-[104px] min-w-0 appearance-none rounded-lg border border-primary/50 bg-card py-0 pl-8 pr-7 text-xs font-semibold text-foreground shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 sm:w-[108px]"
             >
               {PERIODS.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -218,6 +219,13 @@ function Topbar() {
               aria-hidden
             />
           </div>
+          <Button
+            variant="outline"
+            className="h-9 shrink-0 px-2.5 text-xs font-semibold sm:px-3"
+            onClick={() => setView("daily")}
+          >
+            Manager
+          </Button>
           {(view === "overview" || view === "reports") && (
             <Button
               variant="outline"
