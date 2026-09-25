@@ -82,7 +82,13 @@ jobs:
           npx cap add ios
           npx cap sync ios
       - name: Apply F1 app icon
-        run: cp apps/mobile/ios-icons/AppIcon-512@2x.png apps/mobile/ios/App/App/Assets.xcasset/AppIcon.appiconset/
+        run: |
+          ICON_DIR="$(find apps/mobile/ios -type d -name '*.appiconset' -print -quit)"
+          if [ -z "$ICON_DIR" ]; then
+            ICON_DIR="apps/mobile/ios/App/App/Assets.xcasset/AppIcon.appiconset"
+            mkdir -p "$ICON_DIR"
+          fi
+          cp apps/mobile/ios-icons/AppIcon-512@2x.png "$ICON_DIR/AppIcon-512@2x.png"
       - name: Build unsigned iOS Simulator app
         working-directory: apps/mobile/ios/App
         run: |
