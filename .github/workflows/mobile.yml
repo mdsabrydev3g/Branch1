@@ -93,7 +93,7 @@ jobs:
         working-directory: apps/mobile/ios/App
         run: |
           set -o pipefail
-          xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build | tee xcodebuild.log
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build | tee xcodebuild.log
       - name: Package and upload iOS Simulator app
         if: always()
         uses: actions/upload-artifact@v4
