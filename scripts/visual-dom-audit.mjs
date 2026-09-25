@@ -35,7 +35,7 @@ const chk = (id, cond, extra = "") => {
 
   chk("Overview: Fayoum 1 brand", /Fayoum/i.test(body));
   chk("Overview: Manager button", /Manager/i.test(body));
-  chk("Overview: Month selector", (await page.locator("select").count()) > 0);
+  chk("Overview: Month selector", (await page.locator('[aria-label="Select month"]').count()) > 0);
   chk("Overview: CR card", /CR/i.test(body));
   chk("Overview: GK card", /GK/i.test(body));
   chk("Overview: Gift card", /Gift/i.test(body));

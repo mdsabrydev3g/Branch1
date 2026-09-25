@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import {
   formatNumber,
   cumAtDay,
-  latestDailyValue,
   calculateTrackTarget,
   calculateDailyTarget,
   calculateRemaining,
@@ -96,11 +95,12 @@ export function OverviewView() {
         branchKpisByPeriod[period]?.[kpi]?.plan ??
         0;
 
-      // Main KPI Actual is driven by the corresponding Daily KPI reading.
-      // Use the latest saved cumulative reading for the selected month, including today.
-      // This prevents an old manually-entered monthly result from remaining visible.
+      // Main KPI Actual comes from the branch-level daily KPI reading, capped
+      // at trackDay (yesterday for the current month) — the SAME window as the
+      // branch circle (sum of departments) and the track target, so the circle
+      // "Actual" and the KPI row always show the same cumulative total.
       const dailyKpi = branchDailyActuals[period]?.[kpi] ?? {};
-      const actual = latestDailyValue(dailyKpi);
+      const actual = cumAtDay(dailyKpi, trackDay);
 
       const target = kpi === "Gross" && enteredTarget === 0 ? totalDepsTarget : enteredTarget;
 

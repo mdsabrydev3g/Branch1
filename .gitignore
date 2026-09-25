@@ -21,3 +21,8 @@ screenshots/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Capacitor generated platform projects and web shell
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/www/

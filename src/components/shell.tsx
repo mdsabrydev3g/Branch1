@@ -1,8 +1,6 @@
 import { useEffect } from "react";
 import { format } from "date-fns";
 import {
-  Calendar,
-  ChevronDown,
   FileBarChart,
   Layers,
   LayoutGrid,
@@ -13,11 +11,12 @@ import {
   Tv,
   Edit,
 } from "lucide-react";
-import { PERIODS, type ViewId } from "@/lib/domain";
+import { type ViewId } from "@/lib/domain";
 import { usePerfStore } from "@/lib/store";
 import { isRealtimeLive, resyncNow, startRealtimeSync } from "@/lib/realtime/client";
 import { usePrefs, usePrefsEffect } from "@/lib/prefs";
 import { Button } from "@/components/ui/button";
+import { MonthPicker } from "@/components/month-picker";
 import { Overview } from "@/components/overview";
 import { TvAcView } from "@/components/tv-ac-view";
 import { MdaSdaView } from "@/components/mda-sda-view";
@@ -177,8 +176,6 @@ function Sidebar() {
 }
 
 function Topbar() {
-  const period = usePerfStore((s) => s.period);
-  const setPeriod = usePerfStore((s) => s.setPeriod);
   const view = usePerfStore((s) => s.view);
   const toggleTheme = usePrefs((s) => s.toggleTheme);
   const today = format(new Date(), "EEE d MMM yyyy");
@@ -204,29 +201,8 @@ function Topbar() {
             <Sun className="theme-art-dark size-4" strokeWidth={2} aria-hidden />
             <Moon className="theme-art-light size-4" strokeWidth={2} aria-hidden />
           </button>
-          <div className="relative flex items-center">
-            <Calendar
-              className="pointer-events-none absolute left-2 size-4 text-primary"
-              aria-hidden
-            />
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as any)}
-              aria-label="Select month"
-              className="h-9 w-[104px] min-w-0 appearance-none rounded-lg border border-primary/50 bg-card py-0 pl-8 pr-7 text-xs font-semibold text-foreground shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 sm:w-[108px]"
-            >
-              {PERIODS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.short} {p.id.slice(0, 4)}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-2 size-4 text-primary"
-              aria-hidden
-            />
-          </div>
-          {(view === "overview" || view === "reports") && (
+          <MonthPicker />
+          {view === "reports" && (
             <Button
               variant="outline"
               size="icon"

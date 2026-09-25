@@ -1,8 +1,10 @@
 import { create } from "zustand";
+import { toast } from "sonner";
 import {
   createSeed,
   currentPeriodId,
   createBranchKpiSeed,
+  ensurePeriodBlocks,
   type BranchKpiData,
   type BranchKpiDataByPeriod,
   type Dep,
@@ -288,7 +290,9 @@ function readSaved(): {
 
     return {
       period: parsed.period,
-      data: parsed.data,
+      // كتل الفترات الناقصة (localStorage قديم) تُملأ فارغة — حتى لا ينهار
+      // العرض عند اختيار شهر لا وجود له في النسخة المخزنة.
+      data: ensurePeriodBlocks(parsed.data),
       dailyActuals: parsed.dailyActuals ?? {},
       branchDailyActuals: parsed.branchDailyActuals ?? {},
       departmentDailyActuals: parsed.departmentDailyActuals ?? {},
@@ -438,6 +442,8 @@ function applySharedToStore(
 
   set({
     ...shared,
+    // كل فترة مدعومة لها كتلة (الحالة القديمة من السيرفر قد تحمل شهوراً ناقصة)
+    data: ensurePeriodBlocks(shared.data),
     branchKpiTargets: shared.branchKpiTargets ?? {},
     branchKpisByPeriod,
     branchKpis,
@@ -884,6 +890,15 @@ export const usePerfStore = create<PerfState>((set, get) => ({
       return;
     }
     if (revision > 0) sharedRevision = revision;
+    // exclude this tab's own save echo: sharedRevision is advanced before
+    // the server publishes the write, so only genuinely newer remote revisions
+    // reach this branch and produce a notification for other operators.
+    // Do not notify for the initial state delivered when a fresh client connects.
+    if (get().hydrated) {
+      toast.success("تم تحديث البيانات", {
+        description: "تم تطبيق تعديل جديد من جهاز آخر على لوحة الأداء.",
+      });
+    }
     applySharedToStore(shared, get, set);
   },
   /**

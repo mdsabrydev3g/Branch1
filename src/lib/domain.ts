@@ -54,8 +54,8 @@ function buildPeriods(startYear: number, endYear: number) {
   return periods;
 }
 
-/** Automatically includes the current year plus the next year. */
-export const PERIODS = buildPeriods(2026, Math.max(new Date().getFullYear() + 1, 2027));
+/** من 2026 (بداية البيانات المحفوظة) حتى سنتين بعد السنة الحالية — التقويم يتنقل داخل هذا النطاق بدل قائمة سنتين فقط. */
+export const PERIODS = buildPeriods(2026, Math.max(new Date().getFullYear() + 2, 2028));
 
 export type ViewId = "overview" | "tv" | "mda" | "mobile" | "daily" | "reports";
 
@@ -258,6 +258,26 @@ export function createSeed(): PerformanceData {
   return data;
 }
 
+/**
+ * يضمن وجود كتلة كاملة لكل فترة مدعومة داخل data: الحالة القادمة من السيرفر
+ * أو الكاش المحلي قد تحمل فترات قديمة فقط، واختيار شهر جديد من التقويم يجب
+ * أن يعرض كتلة فارغة (صفر) بدل انهيار العرض على بيانات ناقصة.
+ */
+export function ensurePeriodBlocks(data: PerformanceData): PerformanceData {
+  if (!data) return createSeed();
+  let changed = false;
+  const next = { ...data };
+  for (const period of PERIODS) {
+    if (!next[period.id]) {
+      const block = {} as PeriodBlock;
+      for (const dep of DEPS) block[dep] = emptyDept();
+      next[period.id] = block;
+      changed = true;
+    }
+  }
+  return changed ? next : data;
+}
+
 export function createBranchKpiSeed(): BranchKpiData {
   const data = {} as BranchKpiData;
   for (const kpi of KPIS) data[kpi] = { plan: 0, result: 0 };
@@ -380,11 +400,20 @@ export function showSecondHalf(period: PeriodId, today = localDateString()): boo
   return Number(today.slice(-2)) >= 16;
 }
 
+/**
+ * آخر قراءة تراكمية صحيحة (آخر يوم له قراءة).
+ * القراءة التراكمية لا تقل عن سابقتها — لذا تُتجاهل قيمة الصفر الوسط
+ * (إدخال خاطئ مثل TV=0 في 24 سبتمبر) وتُرجع آخر قراءة غير صفرية؛
+ * والصفر يُرجَع فقط عندما لا توجد أي قراءة إيجابية إطلاقاً.
+ */
 export function latestDailyValue(daily: Record<string, number> | undefined): number {
   if (!daily) return 0;
   const dates = Object.keys(daily).sort();
-  if (!dates.length) return 0;
-  return Number(daily[dates[dates.length - 1]]) || 0;
+  for (let i = dates.length - 1; i >= 0; i--) {
+    const v = Number(daily[dates[i]]);
+    if (Number.isFinite(v) && v > 0) return v;
+  }
+  return 0;
 }
 
 /**
@@ -439,8 +468,12 @@ export function latestDailyValueUpToDay(
   const dates = Object.keys(daily)
     .filter((date) => Number(date.slice(-2)) <= maxDay)
     .sort();
-  if (!dates.length) return 0;
-  return Number(daily[dates[dates.length - 1]]) || 0;
+  // تجاهل القيمة صفر الوسط (إدخال خاطئ) — آخر قراءة غير صفرية حتى هذا اليوم.
+  for (let i = dates.length - 1; i >= 0; i--) {
+    const v = Number(daily[dates[i]]);
+    if (Number.isFinite(v) && v > 0) return v;
+  }
+  return 0;
 }
 
 export function monthActualFromDaily(

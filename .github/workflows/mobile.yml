@@ -42,6 +42,12 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+      - name: Apply F1 app icon
+        run: |
+          for d in apps/mobile/android-icons/mipmap-*/; do
+            cp "$d"*.png "apps/mobile/android/app/src/main/res/$(basename "$d")/"
+          done
+          cp apps/mobile/android-icons/ic_launcher_background.xml apps/mobile/android/app/src/main/res/values/
       - name: Build debug APK
         working-directory: apps/mobile/android
         run: ./gradlew assembleDebug
@@ -75,7 +81,21 @@ jobs:
         run: |
           npx cap add ios
           npx cap sync ios
-      - name: Archive iOS project
+      - name: Apply F1 app icon
+        run: cp apps/mobile/ios-icons/AppIcon-512@2x.png apps/mobile/ios/App/App/Assets.xcasset/AppIcon.appiconset/
+      - name: Build unsigned iOS Simulator app
+        working-directory: apps/mobile/ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+      - name: Package and upload iOS Simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch1-ios-simulator
+          path: |
+            apps/mobile/ios/App/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+            apps/mobile/ios
+          if-no-files-found: error
+      - name: Archive iOS source project
         uses: actions/upload-artifact@v4
         with:
           name: branch1-ios-project
