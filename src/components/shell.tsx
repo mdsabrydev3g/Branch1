@@ -24,6 +24,7 @@ import { MobileGroupView } from "@/components/mobile-view";
 import { ReportsView } from "@/components/reports-view";
 import { DailyEditor } from "@/components/daily-editor";
 import { cn } from "@/lib/utils";
+import { requestDesktopNotificationPermission } from "@/lib/notifications";
 
 const NAV: {
   id: ViewId;
@@ -45,6 +46,7 @@ export function Shell() {
   const syncRole = usePerfStore((s) => s.syncRole);
 
   useEffect(() => {
+    void requestDesktopNotificationPermission();
     hydrate();
     // دور الجلسة يأتي من السيرفر فقط — لا يُخزَّن ولا يُخمن محلياً
     void syncRole();

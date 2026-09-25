@@ -25,6 +25,8 @@ import {
   saveDashboardState,
   type SharedDashboardState,
 } from "@/lib/dashboard-api";
+import { describeDashboardChange, showSystemUpdateNotification } from "@/lib/notifications";
+
 import { getAdminSession } from "@/lib/auth/admin-api";
 
 const STORAGE_KEY = "fayoum-pcc-v2";
@@ -60,7 +62,7 @@ interface PerfState {
   setValue: (dep: Dep, kpi: Kpi, field: Field, value: number) => void;
   setBranchValue: (kpi: Kpi, field: Field, value: number) => void;
   setDailyActual: (dep: Dep, kpi: Kpi, date: string, value: number) => void;
-
+  setBranchKpiTarget: (kpi: Kpi, value: number) => void;
   setDepartmentDailyActual: (dep: Dep, date: string, value: number) => void;
   setDepartmentTarget: (dep: Dep, value: number) => void;
   saveMonthlyKpiActuals: (params: { period: PeriodId; actuals: Partial<Record<Kpi, number>> }) => Promise<void>;
@@ -178,7 +180,7 @@ async function writeSharedState(
 ) {
   sharedWritesInFlight += 1;
   try {
-    const result = await saveDashboardState({ data, expectedRevision: sharedRevision });
+    const result = await saveDashboardState({ data, expectedRevision: sharedRevision } as Parameters<typeof saveDashboardState>[0] & { expectedRevision: number });
     if (result.ok) {
       sharedRevision = result.revision;
       return result;
@@ -357,11 +359,6 @@ function migrateNames(shared: {
   if (shared.branchKpiTargets) {
     for (const period of Object.keys(shared.branchKpiTargets)) {
       applyKpis(shared.branchKpiTargets[period as PeriodId]);
-    }
-  }
-  if (shared.branchKpisByPeriod) {
-    for (const period of Object.keys(shared.branchKpisByPeriod)) {
-      applyKpis(shared.branchKpisByPeriod[period as PeriodId]);
     }
   }
   if (shared.branchDailyActuals) {
@@ -614,7 +611,7 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     );
     queueSharedSave(get, set);
   },
-  setBranchKpiTarget: (kpi, value) => {
+  setBranchKpiTarget: (kpi: Kpi, value: number) => {
     if (get().role === "staff") return;
     const { period, branchKpiTargets, branchKpisByPeriod } = get();
     const nextTargets: BranchKpiTargets = {
@@ -895,9 +892,21 @@ export const usePerfStore = create<PerfState>((set, get) => ({
     // reach this branch and produce a notification for other operators.
     // Do not notify for the initial state delivered when a fresh client connects.
     if (get().hydrated) {
-      toast.success("تم تحديث البيانات", {
-        description: "تم تطبيق تعديل جديد من جهاز آخر على لوحة الأداء.",
+      const previous = {
+        data: get().data,
+        branchKpis: get().branchKpisByPeriod,
+        branchDailyActuals: get().branchDailyActuals,
+        departmentDailyActuals: get().departmentDailyActuals,
+        departmentTargets: get().departmentTargets,
+        branchKpiTargets: get().branchKpiTargets,
+      };
+      const description = describeDashboardChange(previous, shared);
+      toast("تم تحديث البيانات", {
+        description: `${description} — تم تطبيق التعديل من جهاز آخر.`,
+        duration: 6500,
+        action: { label: "عرض", onClick: () => usePerfStore.getState().setView("overview") },
       });
+      void showSystemUpdateNotification("تحديث جديد في Branch1", `${description}\nتم تطبيقه من جهاز آخر.`);
     }
     applySharedToStore(shared, get, set);
   },

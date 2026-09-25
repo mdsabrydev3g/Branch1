@@ -95,8 +95,7 @@ function onVisibility(): void {
   if (document.visibilityState === "visible") {
     refreshOnReturn();
   } else {
-    // Free the connection while hidden; both platforms suspend timers anyway.
-    closeStream();
+    // Keep the stream alive so Capacitor can receive the event while backgrounded.
   }
 }
 
