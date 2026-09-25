@@ -92,17 +92,15 @@ jobs:
       - name: Build unsigned iOS Simulator app
         working-directory: apps/mobile/ios/App
         run: |
-          xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+          set -o pipefail
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build | tee xcodebuild.log
       - name: Package and upload iOS Simulator app
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: branch1-ios-simulator
           path: |
             apps/mobile/ios/App/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+            apps/mobile/ios/App/xcodebuild.log
             apps/mobile/ios
           if-no-files-found: error
-      - name: Archive iOS source project
-        uses: actions/upload-artifact@v4
-        with:
-          name: branch1-ios-project
-          path: apps/mobile/ios
